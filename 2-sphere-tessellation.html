@@ -1,0 +1,150 @@
+<html>
+	<head>
+		<title>Draw a sphere with subdivision</title>
+		<style>
+		body {
+			font-family: Monospace;
+			background-color: #f0f0f0;
+			margin: 0px;
+			overflow: hidden;
+		}
+		
+		canvas { 
+			width: 100%; 
+			height: 100%;
+		}
+		</style>
+		<script src="lib/three.min.js"></script>
+		<script src="lib/stats.min.js"></script>
+	</head>
+	<body>	
+		<script>
+			var steps = -1;
+			var info = document.createElement( 'div' );
+			info.style.position = 'absolute';
+			info.style.top = '10px';
+			info.style.width = '100%';
+			info.style.textAlign = 'center';
+			document.body.appendChild( info );
+			
+			var scene = new THREE.Scene();
+			var camera = new THREE.PerspectiveCamera( 75, window.innerWidth / window.innerHeight, 0.1, 1000 );
+			var renderer = new THREE.WebGLRenderer();
+			renderer.setSize( window.innerWidth, window.innerHeight );
+			renderer.setClearColor( 0xf0f0f0 );
+			document.body.appendChild( renderer.domElement );
+			
+			var material, geometry, mesh;
+			
+			material = new THREE.MeshBasicMaterial( { color: 0xff0000, wireframe: true } );
+			
+			nextSubdivision(1);	
+				
+			stats = new Stats();
+			stats.domElement.style.position = 'absolute';
+			stats.domElement.style.top = '0px';
+			document.body.appendChild( stats.domElement );
+
+			camera.position.z = 5;
+			
+			// perform subdivision step
+			function nextSubdivision(step)
+			{
+				steps = steps + step;
+				if (steps < 0) steps = 0;
+				scene.remove( mesh);
+				geometry = new THREE.Geometry();
+				createGeometry( steps );
+				mesh = new THREE.Mesh(geometry, material);
+				scene.add( mesh );
+				
+				info.innerHTML = 'Subdivision steps: ' + steps + ' <a href="#" onclick="nextSubdivision(1); return false;">more</a>/<a href="#"' +
+				 'onclick="nextSubdivision(-1); return false;">less</a><br><br>' + 
+				 'Vertices count: ' + geometry.vertices.length + '<br>Face count: ' + geometry.faces.length;
+				
+			}
+			
+			
+			// given the indices of two vertices in the geometry.vertices arrays, compute midpoint vertex and add it to the geometry.vertices arrays
+			function addMidPoint(i_va, i_vb) 
+			{
+				va = geometry.vertices[i_va];
+				vb = geometry.vertices[i_vb];
+				midpoint = new THREE.Vector3( (va.x + vb.x)/2.0, (va.y + vb.y)/2.0, (va.z + vb.z)/2.0);
+				midpoint.normalize();
+				geometry.vertices.push( midpoint );
+				
+				
+			}
+			
+			// subdivides the i-th triangle in geometry.faces into 4 triangles
+			function subdivide(i)
+			{
+		
+				i_v0 = geometry.faces[i].a;
+				i_v1 = geometry.faces[i].b;
+				i_v2 = geometry.faces[i].c;
+				// add new vertices
+				addMidPoint(i_v1, i_v0);
+				addMidPoint(i_v1, i_v2);
+				addMidPoint(i_v2, i_v0);
+				// retrieve indices of new vertices
+				i_v3 = geometry.vertices.length - 3;
+				i_v4 = geometry.vertices.length - 2;
+				i_v5 = geometry.vertices.length - 1;
+				
+				// first triangle replaces input one in indices array
+				geometry.faces[i] = new THREE.Face3(i_v0, i_v3, i_v5);
+				// other triangles are added to the end of the faces array
+				geometry.faces.push( new THREE.Face3( i_v3, i_v1 ,i_v4 ) );
+				geometry.faces.push( new THREE.Face3( i_v3, i_v4, i_v5) );
+				geometry.faces.push( new THREE.Face3( i_v4, i_v2, i_v5) );
+			}
+			
+			
+			function createGeometry( subdivision_steps) {
+				
+				// start with level 0, i.e. the octahedron
+				geometry.vertices.push( new THREE.Vector3( 1, 0, 0 )); // 0
+				geometry.vertices.push( new THREE.Vector3( 0, 0, 1 )); // 1
+				geometry.vertices.push( new THREE.Vector3( -1, 0, 0 )); // 2
+				geometry.vertices.push( new THREE.Vector3( 0, 0, -1 )); // 3
+				geometry.vertices.push( new THREE.Vector3( 0, 1, 0 )); // 4
+				geometry.vertices.push( new THREE.Vector3( 0, -1, 0 )); // 5
+				
+				geometry.faces.push( new THREE.Face3(0, 4, 1));
+				geometry.faces.push( new THREE.Face3(0, 1, 5));
+				geometry.faces.push( new THREE.Face3(1, 4, 2));
+				geometry.faces.push( new THREE.Face3(1, 2, 5));
+				geometry.faces.push( new THREE.Face3(0, 3, 4));
+				geometry.faces.push( new THREE.Face3(0, 5, 3));
+				geometry.faces.push( new THREE.Face3(3, 2, 4));
+				geometry.faces.push( new THREE.Face3(3, 5, 2));
+				
+				/* subdivision */
+				for (k=0; k<subdivision_steps; k++)
+				{
+					n_triangles = geometry.faces.length;
+					// consider one triangle at a time and subdivide it into 4 triangles
+					for (i=0; i<n_triangles; i++)
+						subdivide( i );					
+				}
+				
+			
+				
+				
+			}
+			
+			function render() {
+				
+				requestAnimationFrame(render);
+				stats.update();
+				renderer.render(scene, camera);
+			
+			}
+			
+			render();
+			
+		</script>
+	</body>
+</html>
