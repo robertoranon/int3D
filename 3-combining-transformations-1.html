@@ -30,10 +30,22 @@
 			renderer.setClearColor( 0xf0f0f0 );
 			document.body.appendChild( renderer.domElement );
 			
-			var geometry = new THREE.CubeGeometry(1,1,1);
-			var material = new THREE.MeshBasicMaterial( { color: 0x00ff00 } );
-			var cube = new THREE.Mesh( geometry, material );
-			scene.add( cube );
+			// sphere
+			var sphere_geometry = new THREE.SphereGeometry(1,32,32);
+			var sphere_material = new THREE.MeshBasicMaterial( { color: 0x00ff00 } );
+			var sphere = new THREE.Mesh( sphere_geometry, sphere_material );
+			sphere.position = new THREE.Vector3( 0, 2, 0);
+			scene.add( sphere );
+			
+			// cylinder
+			var cylinder_geometry = new THREE.CylinderGeometry(0.3, 0.3, 3);
+			var cylinder_material = new THREE.MeshBasicMaterial( { color: 0xff0000 } );
+			var cylinder = new THREE.Mesh( cylinder_geometry, cylinder_material );
+			
+/////////////// your code goes here
+			
+			
+			scene.add( cylinder );
 			
 			
 			stats = new Stats();
@@ -46,8 +58,6 @@
 			function render() {
 				
 				requestAnimationFrame(render);
-				cube.rotation.x += 0.01;
-				cube.rotation.y += 0.01;
 				
 				stats.update();
 				

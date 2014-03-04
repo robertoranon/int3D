@@ -30,11 +30,12 @@
 			renderer.setClearColor( 0xf0f0f0 );
 			document.body.appendChild( renderer.domElement );
 			
+			// scale
 			var geometry = new THREE.CubeGeometry(1,1,1);
-			var material = new THREE.MeshBasicMaterial( { color: 0x00ff00 } );
+			var material = new THREE.MeshBasicMaterial( { color: 0x00ff00, wireframe: true } );
 			var cube = new THREE.Mesh( geometry, material );
+			cube.scale = new THREE.Vector3( 3, 3, 3);
 			scene.add( cube );
-			
 			
 			stats = new Stats();
 			stats.domElement.style.position = 'absolute';
@@ -46,8 +47,6 @@
 			function render() {
 				
 				requestAnimationFrame(render);
-				cube.rotation.x += 0.01;
-				cube.rotation.y += 0.01;
 				
 				stats.update();
 				
