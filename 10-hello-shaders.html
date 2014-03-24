@@ -1,0 +1,97 @@
+<html>
+	<head>
+		<title>My first Three.js app</title>
+		<style>
+		
+		body {
+			font-family: Monospace;
+			background-color: #f0f0f0;
+			margin: 0px;
+			overflow: hidden;
+		}
+		
+		canvas { 
+			width: 100%; 
+			height: 100%;
+		}
+	
+	</style>
+		<script src="lib/three.min.js"></script>
+		<script src="lib/stats.min.js"></script>
+	</head>
+	<body>
+	
+		<script type="text/x-glsl" id="vertex">
+			uniform vec3 materialColor;
+			varying vec3 vColor;
+
+			void main() {
+		    	// transforms the vertex from object space to clip space coords		
+				gl_Position = projectionMatrix * modelViewMatrix * vec4( position, 1.0 );
+				vColor = materialColor;
+			}
+		</script>
+		
+		<script type="text/x-glsl" id="fragment">
+			varying vec3 vColor;
+
+			void main() {
+				gl_FragColor = vec4(vColor, 1.0);
+			}
+		</script>
+	
+		
+		<script>
+			var scene = new THREE.Scene();
+			var camera = new THREE.PerspectiveCamera( 75, window.innerWidth / window.innerHeight, 0.1, 1000 );
+			camera.position.set( 0, 0, 100 );
+			
+			var renderer = new THREE.WebGLRenderer({ antialias: true });
+			renderer.setSize( window.innerWidth, window.innerHeight );
+			renderer.setClearColor( 0xf0f0f0 );
+			document.body.appendChild( renderer.domElement );
+			
+			// scene code here
+			
+			var uniforms = {
+						materialColor:	{ type: "v3", value: new THREE.Vector3() }
+					};
+					
+			var vs = document.getElementById("vertex").textContent;
+			var fs = document.getElementById("fragment").textContent;
+			
+			uniforms.materialColor.value = new THREE.Vector3(1.0,1.0,0.0);
+			
+			var sphereMaterial = new THREE.ShaderMaterial({ uniforms: uniforms, vertexShader: vs, fragmentShader: fs });
+			
+			sphere = new THREE.Mesh(
+				new THREE.SphereGeometry( 10, 32, 16 ),
+				sphereMaterial );
+				
+			scene.add( sphere );
+
+			stats = new Stats();
+			stats.domElement.style.position = 'absolute';
+			stats.domElement.style.top = '0px';
+			document.body.appendChild( stats.domElement );
+			
+			
+			
+			
+			
+			function animate() {
+
+				requestAnimationFrame( animate );
+
+			}
+			
+			function render() {
+				
+				stats.update();
+				renderer.render(scene, camera);
+			}
+			
+			render();
+		</script>
+	</body>
+</html>
