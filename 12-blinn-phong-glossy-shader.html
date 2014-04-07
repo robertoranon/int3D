@@ -1,6 +1,6 @@
 <html>
 	<head>
-		<title>Lambertian BRDF computed by shader</title>
+		<title>Blinn-Phong BRDF computed by shader</title>
 		<style>
 		
 		body {
@@ -27,7 +27,7 @@
 		uniform vec3 pointLightPosition;
 		uniform vec3 lightPower;
 		uniform float s;
-		uniform vec3 rho;
+		uniform vec3 k_s;
 		const float PI = 3.14159;
 		
 		void main() {
@@ -40,9 +40,9 @@
 			lVector = normalize( lVector );
 			vec3 vVector = normalize( -mvPosition.xyz );
 			vec3 hVector = normalize( lVector + vVector);
-			float dotProduct = dot( transformedNormal, hVector );
-			float pointLightWeighting = pow(max( dotProduct, 0.0 ),s);
-			outRadiance = beta * pointLightWeighting * rho;
+			float hDotn = max(dot( transformedNormal, hVector ),0.0);
+			float pointLightWeighting = dot( transformedNormal, lVector);
+			outRadiance = beta * pointLightWeighting * pow(hDotn,s) * k_s;
 		}
 		</script>
 		
@@ -71,7 +71,7 @@
 			// scene code here
 			
 			var uniforms = {
-						rho:	{ type: "v3", value: new THREE.Vector3() },
+						k_s:	{ type: "v3", value: new THREE.Vector3() },
 						pointLightPosition:	{ type: "v3", value: new THREE.Vector3() },
 						lightPower:	{ type: "v3", value: new THREE.Vector3() },
 						s: {type: "f", value: 0}
@@ -92,7 +92,7 @@
 			light.position = new THREE.Vector3( 10.0, 10.0, 10.0 );
 			scene.add( light );
 			
-			uniforms.rho.value = new THREE.Vector3( 0.9, 0.9, 0.9 );
+			uniforms.k_s.value = new THREE.Vector3( 0.9, 0.9, 0.9 );
 			uniforms.pointLightPosition.value = new THREE.Vector3(light.position.x, light.position.y, light.position.z);
 			uniforms.lightPower.value = new THREE.Vector3( 7000.0, 7000.0, 7000.0 );
 			uniforms.s.value = 64;

@@ -80,7 +80,7 @@
 			var sphereMaterial = new THREE.ShaderMaterial({ uniforms: uniforms, vertexShader: vs, fragmentShader: fs });
 			
 			sphere = new THREE.Mesh(
-				new THREE.SphereGeometry( 3, 32, 16 ),
+				new THREE.SphereGeometry( 3, 32, 32 ),
 				sphereMaterial );
 				
 			scene.add( sphere );
@@ -89,9 +89,9 @@
 			light.position = new THREE.Vector3( 10.0, 10.0, 10.0 );
 			scene.add( light );
 			
-			uniforms.rho.value = (new THREE.Vector3( 0.9, 0.9, 0.9 )).divideScalar(Math.PI);
+			uniforms.rho.value = (new THREE.Vector3( 0.9, 0.0, 0.0 )).divideScalar(Math.PI);
 			uniforms.pointLightPosition.value = new THREE.Vector3(light.position.x, light.position.y, light.position.z);
-			uniforms.lightPower.value = new THREE.Vector3( 10000.0, 10000.0, 10000.0 );
+			uniforms.lightPower.value = new THREE.Vector3( 7000.0, 7000.0, 7000.0 );
 			
 			
 			stats = new Stats();
