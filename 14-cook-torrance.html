@@ -1,0 +1,170 @@
+<html>
+	<head>
+		<title>Cook-Torrance BRDF computed by shader</title>
+		<style>
+		
+		body {
+			font-family: Monospace;
+			background-color: #f0f0f0;
+			margin: 0px;
+			overflow: hidden;
+		}
+		
+		canvas { 
+			width: 100%; 
+			height: 100%;
+		}
+	
+	</style>
+		<script src="lib/three.min.js"></script>
+		<script src="lib/stats.min.js"></script>
+		<script src="lib/OrbitControls.js"></script>
+		<script src="lib/VTKLoader.js"></script>
+	</head>
+	<body>
+	
+		<script type="text/x-glsl" id="vertex">
+		varying vec3 transformedNormal;
+		varying vec3 pointPosition;
+		varying vec3 lightVector;
+		uniform vec3 pointLightPosition;
+
+		void main()
+		{
+			transformedNormal = normalMatrix * normal;
+			pointPosition = (modelViewMatrix * vec4( position, 1.0 )).xyz;
+			vec4 lPosition = viewMatrix * vec4( pointLightPosition, 1.0 );
+			lightVector = lPosition.xyz - pointPosition;
+			gl_Position = projectionMatrix * vec4(pointPosition,1.0);
+		}
+		</script>
+		
+		<script type="text/x-glsl" id="ct-fragment">
+			uniform vec3 lightPower;
+			uniform vec3 ambient;
+			uniform vec3 Kd; // surface diffuse color
+			uniform vec3 Ks; // surface specular color: equal to R_F(0)
+			uniform float m; // material roughness (average slope of microfacets)
+			uniform float s; // percentage of incoming light which is specularly reflected
+
+			varying vec3 transformedNormal;
+			varying vec3 pointPosition;
+			varying vec3 lightVector;
+
+			#define PI 3.14159265	
+
+			// compute the geometry term
+			float G(float NdotH, float NdotV, float VdotH, float NdotL)
+			{
+				float G1 = 2.0 * NdotH * NdotV / VdotH;
+				float G2 = 2.0 * NdotH * NdotL / VdotH;
+				return min( 1.0, min( G1, G2 ));
+			}
+
+			// compute Fresnel reflection term
+			vec3 R_F(float VdotH) {
+				return Ks + (1.0 - Ks)*pow(1.0-VdotH, 5.0);
+			}
+
+			// compute the normal distribution function, based on Beckmann distribution
+			float Beckmann(float NdotH){
+				float A = 1.0 / (pow(m,2.0)+pow(NdotH,4.0)*PI);
+				float B = exp( - pow( tan(acos(NdotH)) , 2.0) / pow(m,2.0));
+				return A*B;
+			}
+
+			void main()
+			{
+				vec3  n      		 	= normalize( transformedNormal );  
+				vec3  v         		= normalize( -pointPosition );  
+				vec3  l         		= normalize(  lightVector );  
+				vec3  h          		= normalize( v+l );  
+				float  NdotH    		= max(0.0, dot( n, h ));  
+				float  VdotH     		= max(0.0, dot( v, h ));  
+				float  NdotV 			= max(0.0, dot( n, v ));  
+				float  NdotL 			= max(0.0, dot( n, l ));    
+				// specular BRDF
+				vec3 Specular = (Beckmann(NdotH) * G(NdotH, NdotV, VdotH, NdotL) * R_F(VdotH)) / ( NdotL* NdotV);
+				vec3 beta = lightPower / ( 4.0  * PI * pow( length(lightVector),2.0) );
+				gl_FragColor = vec4(beta * NdotL * ((1.0-s)*Kd + s*Specular) + ambient*Kd, 1.0);
+			}
+		</script>
+	
+		
+		<script>
+			var scene = new THREE.Scene();
+			var camera = new THREE.PerspectiveCamera( 75, window.innerWidth / window.innerHeight, 0.1, 1000 );
+			camera.position = new THREE.Vector3(0,0,5);
+			camera.lookAt( new THREE.Vector3(0,0,0));
+			
+			controls = new THREE.OrbitControls( camera );
+			controls.addEventListener( 'change', render );
+			
+			var renderer = new THREE.WebGLRenderer({ antialias: true });
+			renderer.setSize( window.innerWidth, window.innerHeight );
+			renderer.setClearColor( 0xf0f0f0 );
+			document.body.appendChild( renderer.domElement );
+			
+			// scene code here
+			
+			var uniforms = {
+						Ks:	{ type: "v3", value: new THREE.Vector3() },
+						Kd:	{ type: "v3", value: new THREE.Vector3() },
+						ambient:	{ type: "v3", value: new THREE.Vector3() },
+						pointLightPosition:	{ type: "v3", value: new THREE.Vector3() },
+						lightPower:	{ type: "v3", value: new THREE.Vector3() },
+						s: {type: "f", value: 0},
+						m: {type: "f", value: 0}
+					};
+					
+			var vs = document.getElementById("vertex").textContent;
+			var fs = document.getElementById("ct-fragment").textContent;
+			
+			var sphereMaterial = new THREE.ShaderMaterial({ uniforms: uniforms, vertexShader: vs, fragmentShader: fs });
+			
+			var loader = new THREE.VTKLoader();
+			loader.addEventListener( 'load', function ( event ) {
+
+				var geometry = event.content;
+
+				var mesh = new THREE.Mesh( geometry, sphereMaterial );
+				mesh.scale = new THREE.Vector3(3,3,3);
+				scene.add( mesh );
+
+			} );
+			loader.load( "models/bunny.vtk" );
+			
+			light = new THREE.Mesh( new THREE.SphereGeometry( 1, 16, 16), new THREE.MeshBasicMaterial ({color: 0xffff00, wireframe:true}));
+			light.position = new THREE.Vector3( 10.0, 10.0, 10.0 );
+			scene.add( light );
+			
+			uniforms.Ks.value = new THREE.Vector3( 0.95, 0.93, 0.88 );
+			uniforms.Kd.value = (new THREE.Vector3( 0.50754, 0.50754, 0.50754 ));
+			uniforms.ambient.value = (new THREE.Vector3( 0.19225, 0.19225, 0.19225 ));
+			uniforms.pointLightPosition.value = new THREE.Vector3(light.position.x, light.position.y, light.position.z);
+			uniforms.lightPower.value = new THREE.Vector3( 7000.0, 7000.0, 7000.0 );
+			uniforms.s.value = 0.5;
+			uniforms.m.value = 0.1;
+			
+			stats = new Stats();
+			stats.domElement.style.position = 'absolute';
+			stats.domElement.style.top = '0px';
+			document.body.appendChild( stats.domElement );
+			
+			function animate() {
+
+				requestAnimationFrame( animate );
+				controls.update();
+
+			}
+			
+			function render() {
+				
+				stats.update();
+				renderer.render(scene, camera);
+			}
+			
+			animate();
+		</script>
+	</body>
+</html>
