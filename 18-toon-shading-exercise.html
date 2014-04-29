@@ -1,0 +1,119 @@
+<html>
+	<head>
+		<title>Toon Shading</title>
+		<style>
+		
+		body {
+			font-family: Monospace;
+			background-color: #000000;
+			margin: 0px;
+			overflow: hidden;
+		}
+		
+		canvas { 
+			width: 100%; 
+			height: 100%;
+		}
+	
+	</style>
+		<script src="lib/three.min.js"></script>
+		<script src="lib/stats.min.js"></script>
+		<script src="lib/OrbitControls.js"></script>
+		<script src="lib/BinaryLoader.js"></script>
+	</head>
+	<body>
+	
+		<script type="text/x-glsl" id="vertex">
+		uniform vec3 lightDirection;
+		
+		void main()
+		{
+			gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.0);
+			
+		}
+		</script>
+		
+		<script type="text/x-glsl" id="fragment">
+		uniform vec3 brightShade;
+		uniform vec3 darkShade;
+		
+		void main()
+		{
+			gl_FragColor = vec4(brightShade,1.0);
+			
+		}
+		</script>
+		
+		<script>
+			
+			var scene = new THREE.Scene();
+			var camera = new THREE.PerspectiveCamera( 60, window.innerWidth / window.innerHeight, 0.1, 10000 );
+			camera.position = new THREE.Vector3(0,0,1500);
+			
+			var renderer = new THREE.WebGLRenderer({ antialias: true });
+			renderer.setSize( window.innerWidth, window.innerHeight );
+			renderer.setClearColor( 0xffffff );
+			document.body.appendChild( renderer.domElement );
+			
+			controls = new THREE.OrbitControls(camera, renderer.domElement);
+			controls.target.set(0, 0, 0);
+			
+			// scene code here
+			
+			// materials
+			
+			var uniforms = {
+						brightShade:	{ type: "v3", value: new THREE.Vector3(0.98,0.98,0.80) },
+						darkShade:	{ type: "v3", value: new THREE.Vector3(0.98,0.88,0.68) },
+						lightDirection:	{ type: "v3", value: new THREE.Vector3(10,10,10) },
+					};
+					
+			var vs = document.getElementById("vertex").textContent;
+			var fs = document.getElementById("fragment").textContent;
+			
+			var material = new THREE.ShaderMaterial({ uniforms: uniforms, vertexShader: vs, fragmentShader: fs });
+			
+			loader = new THREE.BinaryLoader( true );
+			document.body.appendChild( loader.statusDomElement );
+
+			loader.load( "models/NinjaLo_bin.js", function( geometry ) { createScene( geometry, 23, material ) } );
+					
+			stats = new Stats();
+			stats.domElement.style.position = 'absolute';
+			stats.domElement.style.top = '0px';
+			document.body.appendChild( stats.domElement );
+			
+			animate();
+			
+			
+			function createScene( geometry, scale, material ) {
+				
+				mesh = new THREE.Mesh( geometry, material);
+				mesh.scale.set( scale, scale, scale );
+				scene.add( mesh );
+			
+				loader.statusDomElement.style.display = "none";
+
+			}
+			
+			
+			
+			function animate() {
+
+				requestAnimationFrame( animate );
+				render();
+				
+
+			}
+			
+			function render() {
+				controls.update();
+				stats.update();
+				renderer.render(scene, camera);
+			}
+			
+			
+			
+		</script>
+	</body>
+</html>
