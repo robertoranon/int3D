@@ -1,6 +1,6 @@
 <html>
 	<head>
-		<title>Normal Mapping</title>
+		<title>Normal + Reflection Mapping</title>
 		<style>
 		
 		body {
@@ -95,7 +95,7 @@
 			vec3 worldNormal = normalize( vec3( vec4( normal, 0.0 ) * viewMatrix ) );
 			vec3 vReflect = reflect( cameraToVertex, worldNormal );
 			
-			gl_FragColor = mix( textureCube( tReflection,vReflect), surfaceColor, 0.5);
+			gl_FragColor = mix( textureCube( tReflection,vReflect), surfaceColor, 0.8);
 			
 			
 		}
@@ -155,8 +155,8 @@
 			loader.load( "models/NinjaLo_bin.js", function( geometry ) { createScene( geometry, 23, material3 ) } );
 			
 			uniforms.Ks.value = new THREE.Vector3( 0.8, 0.8, 0.8 );
-			uniforms.Kd.value = new THREE.Vector3( 0.2, 0.2, 0.2 );
-			uniforms.ambient.value = (new THREE.Vector3( 0.1,0.1,0.1 ));
+			uniforms.Kd.value = new THREE.Vector3( 0.5, 0.0, 0.0 );
+			uniforms.ambient.value = (new THREE.Vector3( 0.2,0.0,0.0 ));
 			uniforms.lightDirection.value = new THREE.Vector3(10,10,10);
 			uniforms.lightPower.value = new THREE.Vector3( 1.0, 1.0, 1.0 );
 			uniforms.m.value = 200;
