@@ -1,6 +1,6 @@
 <html>
 	<head>
-		<title>My first Three.js app</title>
+		<title>Basic Keyframing</title>
 		<style>
 		
 		body {
@@ -30,11 +30,11 @@
 			renderer.setClearColor( 0xf0f0f0 );
 			document.body.appendChild( renderer.domElement );
 			
-			var geometry = new THREE.CubeGeometry(1,1,1);
+			var geometry = new THREE.SphereGeometry(1,20,20);
 			var material = new THREE.MeshBasicMaterial( { color: 0x00ff00 } );
-			var cube = new THREE.Mesh( geometry, material );
-			scene.add( cube );
-			
+			var sphere = new THREE.Mesh( geometry, material );
+			scene.add( sphere );
+			sphere.position.x = -2;
 			
 			stats = new Stats();
 			stats.domElement.style.position = 'absolute';
@@ -43,10 +43,20 @@
 			
 			camera.position.z = 5;
 			
+			var position1 = new THREE.Vector3(-2,0,0);
+			var position2 = new THREE.Vector3(2,0,0);
+			
+			var clock = new THREE.Clock();
+			
+			var t1 = clock.startTime/1000;
+			
 			function render() {
 				
 				requestAnimationFrame(render);
-				cube.rotation.y += 0.01;
+				
+				var t = clock.getElapsedTime();
+				if (t<5.0)
+					sphere.position.x = -2*(5-t)/5 + 2*(t/5);
 				
 				stats.update();
 				

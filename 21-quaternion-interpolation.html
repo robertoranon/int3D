@@ -1,6 +1,6 @@
 <html>
 	<head>
-		<title>My first Three.js app</title>
+		<title>Basic Keyframing</title>
 		<style>
 		
 		body {
@@ -33,8 +33,11 @@
 			var geometry = new THREE.CubeGeometry(1,1,1);
 			var material = new THREE.MeshBasicMaterial( { color: 0x00ff00 } );
 			var cube = new THREE.Mesh( geometry, material );
-			scene.add( cube );
+			var q = new THREE.Quaternion();
+			q.setFromAxisAngle((new THREE.Vector3(1,2,4)).normalize(),Math.PI / 4);
+			cube.quaternion = q;
 			
+			scene.add( cube );
 			
 			stats = new Stats();
 			stats.domElement.style.position = 'absolute';
@@ -43,10 +46,25 @@
 			
 			camera.position.z = 5;
 			
+			var q1 = new THREE.Quaternion();
+			q1.setFromAxisAngle((new THREE.Vector3(1,1,1)).normalize(),Math.PI / 2);
+			
+			var q2 = new THREE.Quaternion();
+			q2.setFromAxisAngle((new THREE.Vector3(1,0,0)).normalize(),Math.PI / 2);
+			
+			var clock = new THREE.Clock(true);
+			
+			var q = new THREE.Quaternion();
+			
 			function render() {
 				
 				requestAnimationFrame(render);
-				cube.rotation.y += 0.01;
+				
+				t = clock.getElapsedTime();
+				
+				q.copy(q1);
+				
+				cube.quaternion = q.slerp(q2,t/5);
 				
 				stats.update();
 				
