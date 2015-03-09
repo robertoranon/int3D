@@ -33,7 +33,7 @@
 			document.body.appendChild( renderer.domElement );
 			
 			// scale
-			var geometry = new THREE.CubeGeometry(3,3,3);
+			var geometry = new THREE.BoxGeometry(3,3,3);
 			var material = new THREE.MeshBasicMaterial( { color: 0xaaaaaa, transparent: true, opacity:0.4 } );
 			var cube = new THREE.Mesh( geometry, material );
 			
@@ -43,9 +43,7 @@
 			var cylinder_material = new THREE.MeshBasicMaterial( { color: 0xaaaaff });
 			
 			var cylinder = new THREE.Mesh(cylinder_geometry, cylinder_material);
-			var mtx = new THREE.Matrix4();
-			mtx.makeRotationAxis( new THREE.Vector3(1,0,1).normalize(), 45*Math.PI/180);
-			cylinder.matrix = mtx;
+			cylinder.matrix.makeRotationAxis( new THREE.Vector3(1,0,1).normalize(), 45*Math.PI/180);
 			cylinder.matrixAutoUpdate = false;
 			scene.add( cylinder );
 			
@@ -54,7 +52,7 @@
 			stats.domElement.style.top = '0px';
 			document.body.appendChild( stats.domElement );
 			
-			camera.position = new THREE.Vector3(3,4,6);
+			camera.position.set(3,4,6);
 			camera.lookAt( new THREE.Vector3(0,0,0));
 			Coordinates.drawAllAxes();
 			
