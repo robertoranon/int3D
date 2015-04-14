@@ -26,6 +26,7 @@
 		varying vec3 outRadiance;
 		uniform vec3 pointLightPosition;
 		uniform vec3 lightPower;
+		uniform vec3 ambient;
 		uniform vec3 rho;
 		
 		const float PI = 3.14159;
@@ -40,7 +41,7 @@
 			lVector = normalize( lVector );
 			float dotProduct = dot( transformedNormal, lVector );
 			float pointLightWeighting = max( dotProduct, 0.0 );
-			outRadiance = vec3(0.3,0.3,0.3)*rho + beta * pointLightWeighting * rho/PI;
+			outRadiance = ambient + beta * pointLightWeighting * rho/PI;
 		}
 		</script>
 		
@@ -72,6 +73,7 @@
 						rho:	{ type: "v3", value: new THREE.Vector3() },
 						pointLightPosition:	{ type: "v3", value: new THREE.Vector3() },
 						lightPower:	{ type: "v3", value: new THREE.Vector3() },
+						ambient:	{ type: "v3", value: new THREE.Vector3() },
 					};
 					
 			var vs = document.getElementById("vertex").textContent;
@@ -91,7 +93,8 @@
 			
 			uniforms.rho.value = new THREE.Vector3( 0.9, 0.9, 0.0 );
 			uniforms.pointLightPosition.value = new THREE.Vector3(light.position.x, light.position.y, light.position.z);
-			uniforms.lightPower.value = new THREE.Vector3( 7000.0, 7000.0, 7000.0 );
+			uniforms.lightPower.value = new THREE.Vector3( 3000.0, 3000.0, 3000.0 );
+			uniforms.ambient.value = new THREE.Vector3( 0.3, 0.3, 0.0 );
 			
 			
 			stats = new Stats();
