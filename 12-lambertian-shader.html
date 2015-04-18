@@ -80,7 +80,7 @@
 			var sphereMaterial = new THREE.ShaderMaterial({ uniforms: uniforms, vertexShader: vs, fragmentShader: fs });
 			
 			sphere = new THREE.Mesh(
-				new THREE.SphereGeometry( 3, 8, 8 ),
+				new THREE.SphereGeometry( 3, 64, 64 ),
 				sphereMaterial );
 				
 			scene.add( sphere );
