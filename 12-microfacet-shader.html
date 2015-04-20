@@ -1,6 +1,6 @@
 <html>
 	<head>
-		<title>Cook-Torrance BRDF computed by shader</title>
+		<title>Microfacet BRDF</title>
 		<style>
 		
 		body {
@@ -20,6 +20,7 @@
 		<script src="lib/stats.min.js"></script>
 		<script src="lib/OrbitControls.js"></script>
 		<script src="lib/VTKLoader.js"></script>
+	    <script src="lib/dat.gui.min.js"></script>
 	</head>
 	<body>
 	
@@ -39,13 +40,10 @@
 		}
 		</script>
 		
-		<script type="text/x-glsl" id="ct-fragment">
+		<script type="text/x-glsl" id="fragment">
 			uniform vec3 lightPower;
-			uniform vec3 ambient;
-			uniform vec3 Kd; // surface diffuse color
-			uniform vec3 Ks; // surface specular color: equal to R_F(0)
-			uniform float m; // material roughness (average slope of microfacets)
-			uniform float s; // percentage of incoming light which is specularly reflected
+			uniform vec3 c_spec; // surface specular color: equal to F(0)
+			uniform float alpha; // material roughness (increase for rougher surface)
 
 			varying vec3 transformedNormal;
 			varying vec3 pointPosition;
@@ -54,23 +52,21 @@
 			#define PI 3.14159265	
 
 			// compute the geometry term
-			float G(float NdotH, float NdotV, float VdotH, float NdotL)
+			float G(float LdotH)
 			{
-				float G1 = 2.0 * NdotH * NdotV / VdotH;
-				float G2 = 2.0 * NdotH * NdotL / VdotH;
-				return min( 1.0, min( G1, G2 ));
+				return 1.0/pow(LdotH,2.0);
 			}
 
-			// compute Fresnel reflection term
-			vec3 R_F(float VdotH) {
-				return Ks + (1.0 - Ks)*pow(1.0-VdotH, 5.0);
+			// compute Fresnel reflection term with Schlick approximation
+			vec3 F(float LdotH) {
+				return c_spec + (vec3(1.0) - c_spec)*pow(1.0-LdotH, 5.0);
 			}
 
-			// compute the normal distribution function, based on Beckmann distribution
-			float Beckmann(float NdotH){
-				float A = 1.0 / (pow(m,2.0)+pow(NdotH,4.0)*PI);
-				float B = exp( - pow( tan(acos(NdotH)) , 2.0) / pow(m,2.0));
-				return A*B;
+			// compute the normal distribution function, based on Trowbridge-Reitz
+			float D(float NdotH){
+				float A = pow(alpha,2.0);
+				float B = PI * pow(pow(NdotH,2.0)*(A-1.0) + 1.0, 2.0);
+				return A/B;
 			}
 
 			void main()
@@ -79,14 +75,14 @@
 				vec3  v         		= normalize( -pointPosition );  
 				vec3  l         		= normalize(  lightVector );  
 				vec3  h          		= normalize( v+l );  
-				float  NdotH    		= max(0.0, dot( n, h ));  
-				float  VdotH     		= max(0.0, dot( v, h ));  
-				float  NdotV 			= max(0.0, dot( n, v ));  
-				float  NdotL 			= max(0.0, dot( n, l ));    
+				float  NdotH    		= max(0.000001, dot( n, h ));  
+				float  VdotH     		= max(0.000001, dot( v, h ));  
+				float  NdotV 			= max(0.000001, dot( n, v ));  
+				float  NdotL 			= max(0.000001, dot( n, l ));    
 				// specular BRDF
-				vec3 Specular = (Beckmann(NdotH) * G(NdotH, NdotV, VdotH, NdotL) * R_F(VdotH)) / ( NdotL* NdotV);
+				vec3 Specular = F(VdotH) * G(VdotH) * D(NdotH) / 4.0;
 				vec3 beta = lightPower / ( 4.0  * PI * pow( length(lightVector),2.0) );
-				gl_FragColor = vec4(beta * NdotL * ((1.0-s)*Kd + s*Specular) + ambient*Kd, 1.0);
+				gl_FragColor = vec4(beta * NdotL * Specular, 1.0);
 			}
 		</script>
 	
@@ -94,7 +90,7 @@
 		<script>
 			var scene = new THREE.Scene();
 			var camera = new THREE.PerspectiveCamera( 75, window.innerWidth / window.innerHeight, 0.1, 1000 );
-			camera.position.set(0,1,1);
+			camera.position.set(0,5,5);
 			camera.lookAt( new THREE.Vector3(0,0,0));
 			
 			var renderer = new THREE.WebGLRenderer({ antialias: true });
@@ -108,17 +104,14 @@
 			// scene code here
 			
 			var uniforms = {
-						Ks:	{ type: "v3", value: new THREE.Vector3() },
-						Kd:	{ type: "v3", value: new THREE.Vector3() },
-						ambient:	{ type: "v3", value: new THREE.Vector3() },
+						c_spec:	{ type: "v3", value: new THREE.Vector3() },
 						pointLightPosition:	{ type: "v3", value: new THREE.Vector3() },
 						lightPower:	{ type: "v3", value: new THREE.Vector3() },
-						s: {type: "f", value: 0},
-						m: {type: "f", value: 0}
+						alpha: {type: "f", value: 0}
 					};
 					
 			var vs = document.getElementById("vertex").textContent;
-			var fs = document.getElementById("ct-fragment").textContent;
+			var fs = document.getElementById("fragment").textContent;
 			
 			var bunnyMaterial = new THREE.ShaderMaterial({ uniforms: uniforms, vertexShader: vs, fragmentShader: fs });
 			
@@ -129,27 +122,31 @@
 				geometry.computeVertexNormals();
 
 				var mesh = new THREE.Mesh( geometry, bunnyMaterial );
-				mesh.scale.set(3,3,3);
+				mesh.scale.set(16,16,16);
 				scene.add( mesh );
 
 			} );
 			
-			light = new THREE.Mesh( new THREE.SphereGeometry( 1, 16, 16), new THREE.MeshBasicMaterial ({color: 0xffff00, wireframe:true}));
-			light.position.set( 10.0, 10.0, 10.0 );
+			light = new THREE.Mesh( new THREE.SphereGeometry( 0.2, 16, 16), new THREE.MeshBasicMaterial ({color: 0xffff00, wireframe:true}));
+			light.position.set( 4.0, 4.0, 4.0 );
 			scene.add( light );
 			
-			uniforms.Ks.value = new THREE.Vector3( 0.95, 0.93, 0.88 );
-			uniforms.Kd.value = (new THREE.Vector3( 0.50754, 0.50754, 0.50754 ));
-			uniforms.ambient.value = (new THREE.Vector3( 0.19225, 0.19225, 0.19225 ));
+			uniforms.c_spec.value = new THREE.Vector3( 0.95, 0.93, 0.88 ); // gold
 			uniforms.pointLightPosition.value = new THREE.Vector3(light.position.x, light.position.y, light.position.z);
-			uniforms.lightPower.value = new THREE.Vector3( 7000.0, 7000.0, 7000.0 );
-			uniforms.s.value = 0.5;
-			uniforms.m.value = 0.1;
+			uniforms.lightPower.value = new THREE.Vector3( 3000.0, 3000.0, 3000.0 );
+			uniforms.alpha.value = 0.0;
 			
 			stats = new Stats();
 			stats.domElement.style.position = 'absolute';
 			stats.domElement.style.top = '0px';
 			document.body.appendChild( stats.domElement );
+			
+			var params;
+			var guiParameters = function() {
+				this.alpha = 0.5;
+			}
+			
+			setupGui();
 			
 			function animate() {
 
@@ -161,7 +158,14 @@
 			function render() {
 				controls.update();
 				stats.update();
+				uniforms.alpha.value = params.alpha;
 				renderer.render(scene, camera);
+			}
+			
+			function setupGui() {
+				params = new guiParameters();
+				var gui = new dat.GUI();
+				gui.add( params, "alpha", 0.0,7.0 );
 			}
 			
 			animate();
