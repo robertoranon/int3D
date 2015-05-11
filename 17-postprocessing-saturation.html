@@ -1,6 +1,6 @@
 <html>
 	<head>
-		<title>Post-Processing: sepia</title>
+		<title>Post-Processing: saturation</title>
 		<style>
 		
 		body {
@@ -39,14 +39,16 @@
 	<body>
 		
 		<div id="controls">
-			<label for="sepia">sepia:</label><input id="sepia" type="checkbox" onchange="updateOptions()"/><br />
+			<label for="saturation">saturation:</label><input id="saturation" type="checkbox" onchange="updateOptions()"/>
+			<label for="amount">amont:</label><input id="amount" type="range" value="0.0" min="0.0" step="0.1" max="1.0" onchange="saturationEffect.uniforms.amount.value = value;"/><br />
 		</div>
 		
 		
 		<script>
-		sepiaShader = {
+		saturationShader = {
 			uniforms: {
 				"tDiffuse": { type: "t", value: null },
+				"amount": { type: "f", value: 0.0 },
 			},
 			
 			vertexShader: [
@@ -60,26 +62,28 @@
 			fragmentShader: [
 				"uniform sampler2D tDiffuse;",
 				"varying vec2 vUv;",
+				"uniform float amount;",
 				"void main() {",
 					"vec3 original_color = texture2D(tDiffuse, vUv).rgb;",
 					"vec3 luminance_converter = vec3(0.2126, 0.7152, 0.0722);",
 					"float luminance = dot(original_color, luminance_converter);",
-					"vec3 sepia = vec3(0.191 + luminance, -0.054 + luminance,-0.221 + luminance);",
-					"gl_FragColor = vec4(sepia, 1.0);",
+					"vec3 saturation = mix(original_color,vec3(luminance),amount);",
+					"gl_FragColor = vec4(saturation, 1.0);",
 				"}"
 			].join("\n")
 		};
 
 			var camera, scene, renderer, composer;
 			var object, light;
-			var sepiaEffect;
+			var saturationEffect;
 
 			init();
 			animate();
 			
 			function updateOptions() {
-				var sepia = document.getElementById('sepia');
-				sepiaEffect.enabled = sepia.checked;
+				var saturation = document.getElementById('saturation');
+				var amount = document.getElementById('amount');
+				saturationEffect.enabled = saturation.checked;
 			}
 
 			function init() {
@@ -123,8 +127,9 @@
 				composer = new THREE.EffectComposer( renderer );
 				composer.addPass( new THREE.RenderPass( scene, camera ) );
 
-				sepiaEffect = new THREE.ShaderPass( sepiaShader );
-				composer.addPass( sepiaEffect );
+				saturationEffect = new THREE.ShaderPass( saturationShader );
+				saturationEffect.uniforms.amount.value=0.0;
+				composer.addPass( saturationEffect );
 				
 				var effect = new THREE.ShaderPass( THREE.CopyShader);
 				effect.renderToScreen = true;
