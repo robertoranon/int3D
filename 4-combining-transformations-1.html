@@ -34,7 +34,6 @@
 			var sphere_geometry = new THREE.SphereGeometry(1,32,32);
 			var sphere_material = new THREE.MeshBasicMaterial( { color: 0x00ff00 } );
 			var sphere = new THREE.Mesh( sphere_geometry, sphere_material );
-			var c = new THREE.Vector3(0,2,0);
 			sphere.position.set(0,2,0);
 			scene.add( sphere );
 			
@@ -42,6 +41,7 @@
 			var cylinder_geometry = new THREE.CylinderGeometry(0.3, 0.3, 3);
 			var cylinder_material = new THREE.MeshBasicMaterial( { color: 0xff0000 } );
 			var cylinder = new THREE.Mesh( cylinder_geometry, cylinder_material );
+			cylinder.position.set( 0, 2 ,0);
 			
 /////////////// your code goes here
 			
