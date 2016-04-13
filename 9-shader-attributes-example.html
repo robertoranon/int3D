@@ -50,26 +50,23 @@
 			document.body.appendChild( renderer.domElement );
 			
 			// scene code here
-			
-			var attributes = {
-				displacement:	{ type: "f", value: [] }
-			}
 					
 			var vs = document.getElementById("vertex").textContent;
 			var fs = document.getElementById("fragment").textContent;
 			
-			var sphereMaterial = new THREE.ShaderMaterial({ attributes: attributes, vertexShader: vs, fragmentShader: fs });
+			var sphereMaterial = new THREE.ShaderMaterial({ vertexShader: vs, fragmentShader: fs });
 			
 			sphere = new THREE.Mesh(
-				new THREE.SphereGeometry( 10, 32, 16 ),
+				new THREE.SphereBufferGeometry( 10, 32, 16 ),
 				sphereMaterial );
 				
-			var vertices = sphere.geometry.vertices;
-			var values = attributes.displacement.value
+			displacement = new Float32Array( sphere.geometry.attributes.position.count );
 			
-			for(var v = 0; v < vertices.length; v++) {
-			   values.push(Math.random() * 30);
+			for(var i = 0; i < displacement.length; i++) {
+			   displacement[i]=Math.random() * 30;
 		    }
+			
+			sphere.geometry.addAttribute( 'displacement', new THREE.BufferAttribute( displacement, 1 ) );
 				
 			scene.add( sphere );
 
