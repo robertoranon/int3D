@@ -78,6 +78,7 @@
 			var vs = document.getElementById("vertex").textContent;
 			var fs = document.getElementById("fragment").textContent;
 			
+			/*
 			var bunnyMaterial = new THREE.ShaderMaterial({ uniforms: uniforms, vertexShader: vs, fragmentShader: fs });
 			
 			var loader = new THREE.VTKLoader();
@@ -92,8 +93,18 @@
 
 			} );
 			
+			*/
+			
+			var sphereMaterial = new THREE.ShaderMaterial({ uniforms: uniforms, vertexShader: vs, fragmentShader: fs });
+			
+			sphere = new THREE.Mesh(
+				new THREE.SphereGeometry( 3, 64, 64 ),
+				sphereMaterial );
+				
+			scene.add( sphere );
+			
 			light = new THREE.Mesh( new THREE.SphereGeometry( 1, 16, 16), new THREE.MeshBasicMaterial ({color: 0xffff00, wireframe:true}));
-			light.position.set( 4.0, 4.0, 4.0 );
+			light.position.set( 10.0, 10.0, 10.0 );
 			scene.add( light );
 			
 			uniforms.rho.value = (new THREE.Vector3( 0.9, 0.0, 0.0 )).divideScalar(Math.PI);

@@ -26,9 +26,11 @@
 		<script type="text/x-glsl" id="vertex">
 		uniform vec3 lightDirection;
 		
+		
 		void main()
 		{
 			gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.0);
+		    
 			
 		}
 		</script>
@@ -37,9 +39,12 @@
 		uniform vec3 brightShade;
 		uniform vec3 darkShade;
 		
+		
 		void main()
 		{
-			gl_FragColor = vec4(brightShade,1.0);
+			
+				gl_FragColor = vec4(brightShade,1.0);
+			
 			
 		}
 		</script>
@@ -48,7 +53,7 @@
 			
 			var scene = new THREE.Scene();
 			var camera = new THREE.PerspectiveCamera( 60, window.innerWidth / window.innerHeight, 0.1, 10000 );
-			camera.position = new THREE.Vector3(0,0,1500);
+			camera.position.set(0,0,40);
 			
 			var renderer = new THREE.WebGLRenderer({ antialias: true });
 			renderer.setSize( window.innerWidth, window.innerHeight );
@@ -76,8 +81,7 @@
 			loader = new THREE.BinaryLoader( true );
 			document.body.appendChild( loader.statusDomElement );
 
-			loader.load( "models/NinjaLo_bin.js", function( geometry ) { createScene( geometry, 23, material ) } );
-					
+			loader.load( "models/NinjaLo_bin.js", function( geometry ) { createScene( geometry, material ) } );		
 			stats = new Stats();
 			stats.domElement.style.position = 'absolute';
 			stats.domElement.style.top = '0px';
@@ -86,10 +90,11 @@
 			animate();
 			
 			
-			function createScene( geometry, scale, material ) {
+			function createScene( geometry, material ) {
 				
-				mesh = new THREE.Mesh( geometry, material);
-				mesh.scale.set( scale, scale, scale );
+				geometry.computeTangents();
+				
+				mesh = new THREE.Mesh( geometry, material );
 				scene.add( mesh );
 			
 				loader.statusDomElement.style.display = "none";
