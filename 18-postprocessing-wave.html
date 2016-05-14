@@ -1,6 +1,6 @@
 <html>
 	<head>
-		<title>Post-Processing: saturation</title>
+		<title>Post-Processing: Wave effect</title>
 		<style>
 		
 		body {
@@ -39,16 +39,15 @@
 	<body>
 		
 		<div id="controls">
-			<label for="saturation">saturation:</label><input id="saturation" type="checkbox" onchange="updateOptions()"/>
-			<label for="amount">amont:</label><input id="amount" type="range" value="0.0" min="0.0" step="0.1" max="1.0" onchange="saturationEffect.uniforms.amount.value = value;"/><br />
+			<label for="wave">Wave Effect:</label><input id="wave" type="checkbox" onchange="updateOptions()"/><br />
 		</div>
 		
 		
 		<script>
-		saturationShader = {
+		WaveShader = {
 			uniforms: {
 				"tDiffuse": { type: "t", value: null },
-				"amount": { type: "f", value: 0.0 },
+				"offset": { type: "f", value: 0.0 },
 			},
 			
 			vertexShader: [
@@ -61,29 +60,27 @@
 
 			fragmentShader: [
 				"uniform sampler2D tDiffuse;",
+				"uniform float offset;",
 				"varying vec2 vUv;",
-				"uniform float amount;",
 				"void main() {",
-					"vec3 original_color = texture2D(tDiffuse, vUv).rgb;",
-					"vec3 luminance_converter = vec3(0.2126, 0.7152, 0.0722);",
-					"float luminance = dot(original_color, luminance_converter);",
-					"vec3 saturation = mix(original_color,vec3(luminance),amount);",
-					"gl_FragColor = vec4(saturation, 1.0);",
+					"vec2 uv = vUv;",
+					"uv.s += sin(uv.t * 4.0 * 2.0 * 3.14159 + offset) / 100.0;",
+					"gl_FragColor = vec4(texture2D(tDiffuse,uv).xyz, 1.0);",
 				"}"
 			].join("\n")
 		};
 
 			var camera, scene, renderer, composer;
 			var object, light;
-			var saturationEffect;
+			var waveEffect;
+			var clock;
 
 			init();
 			animate();
 			
 			function updateOptions() {
-				var saturation = document.getElementById('saturation');
-				var amount = document.getElementById('amount');
-				saturationEffect.enabled = saturation.checked;
+				var wave = document.getElementById('wave');
+				waveEffect.enabled = wave.checked;
 			}
 
 			function init() {
@@ -91,6 +88,8 @@
 				renderer = new THREE.WebGLRenderer();
 				renderer.setSize( window.innerWidth, window.innerHeight );
 				document.body.appendChild( renderer.domElement );
+				
+				clock = new THREE.Clock();
 
 				//
 
@@ -127,9 +126,8 @@
 				composer = new THREE.EffectComposer( renderer );
 				composer.addPass( new THREE.RenderPass( scene, camera ) );
 
-				saturationEffect = new THREE.ShaderPass( saturationShader );
-				saturationEffect.uniforms.amount.value=0.0;
-				composer.addPass( saturationEffect );
+				waveEffect = new THREE.ShaderPass( WaveShader );
+				composer.addPass( waveEffect );
 				
 				var effect = new THREE.ShaderPass( THREE.CopyShader);
 				effect.renderToScreen = true;
@@ -156,6 +154,7 @@
 
 				object.rotation.x += 0.005;
 				object.rotation.y += 0.01;
+				WaveShader.uniforms.offset.value = clock.elapsedTime / 1000.0 * 2*3.14159 * .75;  // 3/4 of a wave cycle per second
 
 				composer.render();
 
