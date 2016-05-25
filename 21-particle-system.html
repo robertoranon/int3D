@@ -41,14 +41,14 @@
 			function makeParticles()
 			{
 				
-				for (var p = 0; p < 2000; p++) {
+				for (var p = 0; p < 20000; p++) {
 				    var particle = new THREE.Vector3(Math.random() * 500 - 250, Math.random() * 500 - 250, Math.random() * 500 - 250);
 				    particles.vertices.push(particle);
 				}
 				
-				var particleMaterial = new THREE.ParticleSystemMaterial( { color: 0xffffff });
+				var particleMaterial = new THREE.PointsMaterial( { color: 0xffffff });
 				
-				particleSystem = new THREE.ParticleSystem(particles, particleMaterial);
+				particleSystem = new THREE.Points(particles, particleMaterial);
  
 				scene.add(particleSystem);
 				
@@ -57,7 +57,7 @@
 			function updateParticles(delta)
 			{
 				
-				//particleSystem.rotation.y += delta;
+				particleSystem.rotation.y += delta;
 				
 			}
 			

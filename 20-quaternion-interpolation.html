@@ -1,6 +1,6 @@
 <html>
 	<head>
-		<title>Basic Keyframing</title>
+		<title>Quaternion Interpolation</title>
 		<style>
 		
 		body {
@@ -35,7 +35,7 @@
 			var cube = new THREE.Mesh( geometry, material );
 			var q = new THREE.Quaternion();
 			q.setFromAxisAngle((new THREE.Vector3(1,2,4)).normalize(),Math.PI / 4);
-			cube.quaternion = q;
+			cube.quaternion.set(q.x, q.y, q.z, q.w);
 			
 			scene.add( cube );
 			
@@ -64,7 +64,7 @@
 				
 				q.copy(q1);
 				
-				cube.quaternion = q.slerp(q2,t/5);
+				cube.quaternion.copy(q.slerp(q2,t));
 				
 				stats.update();
 				
