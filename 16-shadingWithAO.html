@@ -242,10 +242,8 @@
 				renderer.setPixelRatio( window.devicePixelRatio );
 				renderer.setSize( window.innerWidth, window.innerHeight );
 
-				controls.addEventListener( 'change', render );
 				controls.minDistance = 1;
 				controls.maxDistance = 100;
-				//controls.maxPolarAngle = Math.PI / 2;
 				controls.enablePan = false;
 				controls.target.copy( mesh.position );
 				controls.update();
@@ -272,6 +270,7 @@
 			function update() {
 				requestAnimationFrame( update );
 				stats.update();
+				render();
 			}
 
 			function render() {
