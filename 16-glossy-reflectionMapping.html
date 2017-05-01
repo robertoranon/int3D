@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<title>three.js webgl - glossy reflection mapping</title>
+		<meta charset="utf-8">
+		<meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
+		<style>
+			body {
+				background-color: #f0f0f0;
+				margin: 0px;
+				overflow: hidden;
+			}
+
+			#info {
+				position: absolute;
+				top: 0px; width: 100%;
+				color: #222;
+				padding: 5px;
+				font-family: Monospace;
+				font-size: 13px;
+				text-align: center;
+			}
+
+			a {
+				color: #000;
+				text-decoration: none;
+			}
+
+			a:hover {
+				color: #0080ff;
+			}
+		</style>
+	</head>
+	<body>
+
+		<div id="info">
+			<a href="https://github.com/robertoranon/int3D" target="_blank">Interactive 3D Graphics 2017 code</a> - glossy reflection mapping<br />
+		</div>
+		<script src="lib/three.min.js"></script>
+		<script src="lib/stats.min.js"></script>
+		<script src="lib/OrbitControls.js"></script>
+		<script src='lib/dat.gui.min.js'></script>
+		<script src='lib/OBJLoader.js'></script>
+
+		<!-- shaders -->
+
+		<script type="text/x-glsl" id="vertex">
+		precision highp float;
+		precision highp int;
+		varying vec3 vNormal;
+		varying vec3 vPosition;
+		varying vec2 uVv;
+
+		void main() {
+			vec4 vPos = modelViewMatrix * vec4( position, 1.0 );
+			vPosition = vPos.xyz;
+			vNormal = normalize(normalMatrix * normal);
+			uVv = uv;
+			gl_Position = projectionMatrix * vPos;
+		}
+		</script>
+
+		<script type="text/x-glsl" id="fragment">
+			precision highp float;
+			precision highp int;
+			varying vec3 vNormal;
+			varying vec3 vPosition;
+			varying vec2 uVv;
+			uniform vec3 cspec;
+			uniform sampler2D normalMap;
+			uniform samplerCube envMap;
+			uniform vec2 normalScale;
+			uniform float roughness;
+
+			const float PI = 3.14159;
+			#define saturate(a) clamp( a, 0.0, 1.0 )
+
+			float pow2( const in float x ) { return x*x; }
+
+			float getSpecularMIPLevel( const in float blinnShininessExponent, const in int maxMIPLevel ) {
+		 		float maxMIPLevelScalar = float( maxMIPLevel );
+		 		float desiredMIPLevel = maxMIPLevelScalar - 0.79248 - 0.5 * log2( pow2( blinnShininessExponent ) + 1.0 );
+		 		return clamp( desiredMIPLevel, 0.0, maxMIPLevelScalar );
+		 	}
+
+			float GGXRoughnessToBlinnExponent( const in float ggxRoughness ) {
+		  	return ( 2.0 / pow2( ggxRoughness + 0.0001 ) - 2.0 );
+		  }
+
+			vec3 perturbNormal2Arb( vec3 eye_pos, vec3 surf_norm ) {
+
+				vec3 q0 = dFdx( eye_pos.xyz );
+				vec3 q1 = dFdy( eye_pos.xyz );
+				vec2 st0 = dFdx( uVv.st );
+				vec2 st1 = dFdy( uVv.st );
+
+				vec3 S = normalize(  q0 * st1.t - q1 * st0.t );
+				vec3 T = normalize( -q0 * st1.s + q1 * st0.s );
+				vec3 N =  surf_norm ;
+
+				vec3 mapN = normalize(texture2D( normalMap, uVv ).xyz * 2.0 - 1.0);
+				mapN.xy = normalScale * mapN.xy;
+				mat3 tsn = mat3( S, T, N );
+				return normalize( tsn * mapN );
+
+			}
+
+			// http://en.wikibooks.org/wiki/GLSL_Programming/Applying_Matrix_Transformations
+			vec3 inverseTransformDirection( in vec3 dir, in mat4 matrix ) {
+				return normalize( ( vec4( dir, 0.0 ) * matrix ).xyz );
+			}
+
+			vec3 BRDF_Specular_GGX_Environment( vec3 normal, vec3 viewDir, const in vec3 cspec, const in float roughness ) {
+
+				float dotNV = saturate( dot( normal, viewDir ) );
+				const vec4 c0 = vec4( - 1, - 0.0275, - 0.572, 0.022 );
+				const vec4 c1 = vec4( 1, 0.0425, 1.04, - 0.04 );
+				vec4 r = roughness * c0 + c1;
+				float a004 = min( r.x * r.x, exp2( - 9.28 * dotNV ) ) * r.x + r.y;
+				vec2 AB = vec2( -1.04, 1.04 ) * a004 + r.zw;
+				return cspec * AB.x + AB.y;
+
+			}
+
+			void main() {
+				vec3 n = perturbNormal2Arb( vPosition, normalize( vNormal ));
+				vec3 v = normalize( -vPosition);
+				vec3 vReflect = reflect(vPosition,n);
+				vec3 r = inverseTransformDirection( vReflect, viewMatrix );
+
+				float blinnShininessExponent = GGXRoughnessToBlinnExponent(roughness);
+				float specularMIPLevel = getSpecularMIPLevel(blinnShininessExponent ,8 );
+
+	 			vec3 envLight = textureCubeLodEXT( envMap, vec3(-r.x, r.yz), specularMIPLevel ).rgb;
+	 			// texture in sRGB, linearize
+				envLight = pow( envLight, vec3(2.2));
+				vec3 outRadiance = envLight*BRDF_Specular_GGX_Environment(n, v, cspec, roughness);
+				// gamma encode the final value
+				gl_FragColor = vec4(pow( outRadiance, vec3(1.0/2.2)), 1.0);
+				//gl_FragColor = vec4(r,1.0);
+			}
+		</script>
+
+		<!-- three.js code -->
+
+		<script>
+
+			var renderer = new THREE.WebGLRenderer( { antialias: true } );
+			var camera = new THREE.PerspectiveCamera( 35, window.innerWidth / window.innerHeight, 1, 1000 );
+			var controls = new THREE.OrbitControls( camera, renderer.domElement );
+			var scene = new THREE.Scene();
+
+			var textureParameters = {
+				normalScale: 0.0,
+				roughness: 0.5,
+			}
+
+			var normalMap = loadTexture( "textures/normal.jpg" );
+
+			var loader = new THREE.CubeTextureLoader();
+				loader.setPath( 'textures/cubemap/' );
+
+				var textureCube = loader.load( [
+					'posx.png', 'negx.png',
+					'posy.png', 'negy.png',
+					'posz.png', 'negz.png'
+				] );
+
+			scene.background = textureCube;
+
+			textureCube.minFilter = THREE.LinearMipMapLinearFilter;
+
+			var uniforms = {
+				    cspec:	{ type: "v3", value: new THREE.Vector3(0.8,0.8,0.8) },
+				    normalMap:	{ type: "t", value: normalMap},
+						normalScale: {type: "v2", value: new THREE.Vector2(1,1)},
+						envMap:	{ type: "t", value: textureCube},
+						roughness: { type: "f", value: 0.5},
+					};
+
+			vs = document.getElementById("vertex").textContent;
+			fs = document.getElementById("fragment").textContent;
+
+			materialExtensions = {
+				derivatives: true, // set to use derivatives
+				shaderTextureLOD: true // set to use shader texture LOD
+			};
+
+			var ourMaterial = new THREE.ShaderMaterial({ uniforms: uniforms, vertexShader: vs, fragmentShader: fs,
+			 extensions: materialExtensions });
+
+			var loader = new THREE.OBJLoader();
+				loader.load( "models/ninjaHead_Low.obj", function ( group ) {
+					geometry = group.children[ 0 ].geometry;
+					geometry.center();
+					mesh = new THREE.Mesh( geometry, ourMaterial );
+					mesh.scale.multiplyScalar( 0.1 );
+					scene.add( mesh );
+				} );
+
+			var gui;
+			var stats = new Stats();
+
+			function loadTexture(file) {
+					var texture = new THREE.TextureLoader().load( file , function ( texture ) {
+
+						texture.minFilter = THREE.LinearMipMapLinearFilter;
+						texture.anisotropy = renderer.getMaxAnisotropy();
+						texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
+    			  texture.offset.set( 0, 0 );
+						texture.needsUpdate = true;
+						render();
+					} )
+					return texture;
+			}
+
+			function init() {
+
+				renderer.setClearColor( 0xf0f0f0 );
+
+				camera.position.set( 0, 0, 10 );
+				scene.add( camera );
+
+				document.body.appendChild( renderer.domElement );
+				renderer.setPixelRatio( window.devicePixelRatio );
+				renderer.setSize( window.innerWidth, window.innerHeight );
+
+				controls.minDistance = 1;
+				controls.maxDistance = 100;
+				controls.enablePan = false;
+				controls.update();
+
+				window.addEventListener( 'resize', onResize, false );
+
+			  stats.domElement.style.position = 'absolute';
+			  stats.domElement.style.top = '0px';
+			  document.body.appendChild( stats.domElement );
+
+				ourMaterial.needsUpdate = true;
+
+
+
+			}
+
+			function onResize() {
+
+				renderer.setSize( window.innerWidth, window.innerHeight );
+				camera.aspect = ( window.innerWidth / window.innerHeight );
+				camera.updateProjectionMatrix();
+
+			}
+
+			function update() {
+				requestAnimationFrame( update );
+				stats.update();
+				render();
+			}
+
+			function render() {
+				updateUniforms();
+				renderer.render( scene, camera );
+
+			}
+
+			function clearGui() {
+
+				if ( gui ) gui.destroy();
+				gui = new dat.GUI();
+				gui.open();
+
+			}
+
+			function buildGui() {
+
+				clearGui();
+
+				gui.add(textureParameters,'normalScale').min(-3).max(3);
+				gui.add(textureParameters,'roughness').min(0).max(1);
+				}
+
+			function updateUniforms() {
+
+					uniforms.normalScale.value = new THREE.Vector2( textureParameters.normalScale, textureParameters.normalScale );
+					uniforms.roughness.value = textureParameters.roughness;
+			}
+
+			init();
+			buildGui();
+			update();
+			render();
+
+		</script>
+	</body>
+</html>

@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<title>three.js webgl - reflection mapping</title>
+		<meta charset="utf-8">
+		<meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
+		<style>
+			body {
+				background-color: #f0f0f0;
+				margin: 0px;
+				overflow: hidden;
+			}
+
+			#info {
+				position: absolute;
+				top: 0px; width: 100%;
+				color: #222;
+				padding: 5px;
+				font-family: Monospace;
+				font-size: 13px;
+				text-align: center;
+			}
+
+			a {
+				color: #000;
+				text-decoration: none;
+			}
+
+			a:hover {
+				color: #0080ff;
+			}
+		</style>
+	</head>
+	<body>
+
+		<div id="info" style="color: white">
+			<a href="https://github.com/robertoranon/int3D" target="_blank" style="color: white">Interactive 3D Graphics 2017 code</a> - reflection mapping<br />
+		</div>
+		<script src="lib/three.min.js"></script>
+		<script src="lib/stats.min.js"></script>
+		<script src="lib/OrbitControls.js"></script>
+		<script src='lib/dat.gui.min.js'></script>
+		<script src='lib/OBJLoader.js'></script>
+
+		<!-- shaders -->
+
+		<script type="text/x-glsl" id="vertex">
+		varying vec3 vNormal;
+		varying vec3 vPosition;
+		varying vec3 wPosition;
+		varying vec2 uVv;
+
+		void main() {
+			vec4 vPos = modelViewMatrix * vec4( position, 1.0 );
+			vPosition = vPos.xyz;
+			wPosition = (modelMatrix * vec4( position, 1.0 )).xyz;
+			vNormal = normalMatrix * normal;
+			uVv = uv;
+			gl_Position = projectionMatrix * vPos;
+		}
+		</script>
+
+		<script type="text/x-glsl" id="fragment">
+			varying vec3 vNormal;
+			varying vec3 vPosition;
+			varying vec3 wPosition;
+			varying vec2 uVv;
+			uniform vec3 cspec;
+			uniform sampler2D normalMap;
+			uniform samplerCube envMap;
+			uniform vec2 normalScale;
+			const float PI = 3.14159;
+
+			vec3 FSchlick(float lDoth) {
+				return (cspec + (vec3(1.0)-cspec)*pow(1.0 - lDoth,5.0));
+			}
+
+		#extension GL_OES_standard_derivatives : enable
+
+		vec3 perturbNormal2Arb( vec3 eye_pos, vec3 surf_norm ) {
+
+			vec3 q0 = dFdx( eye_pos.xyz );
+			vec3 q1 = dFdy( eye_pos.xyz );
+			vec2 st0 = dFdx( uVv.st );
+			vec2 st1 = dFdy( uVv.st );
+
+			vec3 S = normalize(  q0 * st1.t - q1 * st0.t );
+			vec3 T = normalize( -q0 * st1.s + q1 * st0.s );
+			vec3 N =  surf_norm ;
+
+			vec3 mapN = normalize(texture2D( normalMap, uVv ).xyz * 2.0 - 1.0);
+			mapN.xy = normalScale * mapN.xy;
+			mat3 tsn = mat3( S, T, N );
+			return normalize( tsn * mapN );
+
+		}
+
+		// http://en.wikibooks.org/wiki/GLSL_Programming/Applying_Matrix_Transformations
+		vec3 inverseTransformDirection( in vec3 dir, in mat4 matrix ) {
+			return normalize( ( vec4( dir, 0.0 ) * matrix ).xyz );
+		}
+
+			void main() {
+				vec3 n = perturbNormal2Arb( vPosition, normalize( vNormal ));
+				vec3 v = normalize( -vPosition);
+				vec3 worldN = inverseTransformDirection( n, viewMatrix );
+				vec3 worldV = cameraPosition - wPosition ;
+				vec3 r = normalize( reflect(-worldV,worldN));
+				// small quantity to prevent divisions by 0
+				float nDotv = max(dot( n, v ),0.000001);
+				vec3 fresnel = FSchlick(nDotv);
+				// negate x to account for how cubemap is displayed on background
+				vec3 envLight = textureCube( envMap, vec3(-r.x, r.yz)).rgb;
+				// texture in sRGB, linearize
+				envLight = pow( envLight, vec3(2.2));
+				vec3 outRadiance = fresnel*envLight;
+				// gamma encode the final value
+				gl_FragColor = vec4(pow( outRadiance, vec3(1.0/2.2)), 1.0);
+			}
+		</script>
+
+		<!-- three.js code -->
+
+		<script>
+
+			var renderer = new THREE.WebGLRenderer( { antialias: true } );
+			var camera = new THREE.PerspectiveCamera( 35, window.innerWidth / window.innerHeight, 1, 1000 );
+			var controls = new THREE.OrbitControls( camera, renderer.domElement );
+			var scene = new THREE.Scene();
+
+			var textureParameters = {
+				normalScale: 0.0,
+			}
+
+			var normalMap = loadTexture( "textures/normal.jpg" );
+
+			var loader = new THREE.CubeTextureLoader();
+				loader.setPath( 'textures/SwedishRoyalCastle/' );
+
+				var textureCube = loader.load( [
+					'px.png', 'nx.png',
+					'py.png', 'ny.png',
+					'pz.png', 'nz.png'
+				] );
+
+			scene.background = textureCube;
+
+			var uniforms = {
+				    cspec:	{ type: "v3", value: new THREE.Vector3(0.8,0.8,0.8) },
+				    normalMap:	{ type: "t", value: normalMap},
+						normalScale: {type: "v2", value: new THREE.Vector2(1,1)},
+						envMap:	{ type: "t", value: textureCube},
+					};
+
+			vs = document.getElementById("vertex").textContent;
+			fs = document.getElementById("fragment").textContent;
+
+			var ourMaterial = new THREE.ShaderMaterial({ uniforms: uniforms, vertexShader: vs, fragmentShader: fs });
+
+			var loader = new THREE.OBJLoader();
+				loader.load( "models/ninjaHead_Low.obj", function ( group ) {
+					geometry = group.children[ 0 ].geometry;
+					geometry.center();
+					mesh = new THREE.Mesh( geometry, ourMaterial );
+					mesh.scale.multiplyScalar( 0.1 );
+					scene.add( mesh );
+				} );
+
+			var gui;
+			var stats = new Stats();
+
+			function loadTexture(file) {
+					var texture = new THREE.TextureLoader().load( file , function ( texture ) {
+
+						texture.minFilter = THREE.LinearMipMapLinearFilter;
+						texture.anisotropy = renderer.getMaxAnisotropy();
+						texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
+    			  texture.offset.set( 0, 0 );
+						texture.needsUpdate = true;
+						render();
+					} )
+					return texture;
+			}
+
+			function init() {
+
+				renderer.setClearColor( 0xf0f0f0 );
+
+				camera.position.set( 0, 0, 10 );
+				scene.add( camera );
+
+				document.body.appendChild( renderer.domElement );
+				renderer.setPixelRatio( window.devicePixelRatio );
+				renderer.setSize( window.innerWidth, window.innerHeight );
+
+				controls.minDistance = 1;
+				controls.maxDistance = 100;
+				controls.enablePan = false;
+				controls.update();
+
+				window.addEventListener( 'resize', onResize, false );
+
+			  stats.domElement.style.position = 'absolute';
+			  stats.domElement.style.top = '0px';
+			  document.body.appendChild( stats.domElement );
+
+				ourMaterial.needsUpdate = true;
+
+
+
+			}
+
+			function onResize() {
+
+				renderer.setSize( window.innerWidth, window.innerHeight );
+				camera.aspect = ( window.innerWidth / window.innerHeight );
+				camera.updateProjectionMatrix();
+
+			}
+
+			function update() {
+				requestAnimationFrame( update );
+				stats.update();
+				render();
+			}
+
+			function render() {
+				updateUniforms();
+				renderer.render( scene, camera );
+
+			}
+
+			function clearGui() {
+
+				if ( gui ) gui.destroy();
+				gui = new dat.GUI();
+				gui.open();
+
+			}
+
+			function buildGui() {
+
+				clearGui();
+
+				gui.add(textureParameters,'normalScale').min(-3).max(3).onChange( function( newVal ) {render()});
+				}
+
+			function updateUniforms() {
+
+
+
+					uniforms.normalScale.value = new THREE.Vector2( textureParameters.normalScale, textureParameters.normalScale );
+
+			}
+
+			init();
+			buildGui();
+			update();
+			render();
+
+		</script>
+	</body>
+</html>
