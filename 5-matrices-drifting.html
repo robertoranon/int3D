@@ -1,0 +1,94 @@
+<html>
+	<head>
+		<title>Scene Hierarchy</title>
+		<style>
+		
+		body {
+			font-family: Monospace;
+			background-color: #f0f0f0;
+			margin: 0px;
+			overflow: hidden;
+		}
+		
+		canvas { 
+			width: 100%; 
+			height: 100%;
+		}
+	
+	</style>
+		<script src="lib/three.min.js"></script>
+		<script src="lib/stats.min.js"></script>
+	</head>
+	<body>
+		
+		<script>
+			var scene = new THREE.Scene();
+			var camera = new THREE.PerspectiveCamera( 75, window.innerWidth / window.innerHeight, 0.1, 1000 );
+			var renderer = new THREE.WebGLRenderer();
+			renderer.setSize( window.innerWidth, window.innerHeight );
+			renderer.setClearColor( 0xf0f0f0 );
+			document.body.appendChild( renderer.domElement );
+			
+			var sphere_geometry = new THREE.SphereGeometry(0.2,32,32);
+			var black_material = new THREE.MeshBasicMaterial( {color: 0x000000});
+
+			var mover1 = new THREE.Object3D();
+			mover1.position.set(-3,0,0);
+			scene.add( mover1);
+			
+			var pivot1 = new THREE.Mesh( sphere_geometry, black_material);
+			mover1.add(pivot1);
+
+			var mover2 = new THREE.Object3D();
+			mover2.position.set(3,0,0);
+			scene.add( mover2);
+			
+			var pivot2 = new THREE.Mesh( sphere_geometry, black_material);
+			mover2.add(pivot2);
+
+			// two spheres, each one rotating around one pivot
+			
+			var green_material = new THREE.MeshBasicMaterial( {color: 0xff0000});
+			var sphere1 = new THREE.Mesh( sphere_geometry, green_material );
+			pivot1.add( sphere1);
+			sphere1.position.set(2,0,0);
+			
+			var sphere2 = new THREE.Mesh( sphere_geometry, green_material );
+			sphere2.position.set(2,0,0);
+			pivot2.add( sphere2);
+			
+			
+			stats = new Stats();
+			stats.domElement.style.position = 'absolute';
+			stats.domElement.style.top = '0px';
+			document.body.appendChild( stats.domElement );
+			
+			camera.position.z = 5;
+
+			var angle = 0.0;
+			var rotationAxis = new THREE.Vector3( 0, 0, 1 ); 
+			var translation = new THREE.Matrix4(); 	
+			
+			function render() {
+				
+				requestAnimationFrame(render);
+				
+				stats.update();
+				// method1: compute new rotation for pivot1 based on angle increment
+				angle += 1.0;
+				pivot1.matrix.makeRotationAxis(rotationAxis, angle*Math.PI/180);
+				pivot1.matrixAutoUpdate = false;
+
+				// method 2: compute new rotation for pivot2 by multiplying matrices
+				var additionalRotation = new THREE.Matrix4( );
+				additionalRotation.makeRotationAxis( rotationAxis, 1.0*Math.PI/180);
+				pivot2.matrix.multiply( additionalRotation);
+				pivot2.matrixAutoUpdate = false;
+				
+				renderer.render(scene, camera);
+			}
+			
+			render();
+		</script>
+	</body>
+</html>

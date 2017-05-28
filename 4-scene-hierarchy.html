@@ -1,0 +1,63 @@
+<html>
+	<head>
+		<title>Scene Hierarchy</title>
+		<style>
+		
+		body {
+			font-family: Monospace;
+			background-color: #f0f0f0;
+			margin: 0px;
+			overflow: hidden;
+		}
+		
+		canvas { 
+			width: 100%; 
+			height: 100%;
+		}
+	
+	</style>
+		<script src="lib/three.min.js"></script>
+		<script src="lib/stats.min.js"></script>
+	</head>
+	<body>
+		
+		<script>
+			var scene = new THREE.Scene();
+			var camera = new THREE.PerspectiveCamera( 75, window.innerWidth / window.innerHeight, 0.1, 1000 );
+			var renderer = new THREE.WebGLRenderer();
+			renderer.setSize( window.innerWidth, window.innerHeight );
+			renderer.setClearColor( 0xf0f0f0 );
+			document.body.appendChild( renderer.domElement );
+			
+			var pivot = new THREE.Object3D();
+			scene.add(pivot);
+			pivot.rotation.z = 45* Math.PI/180;
+			
+			// cylinder
+			var cylinder_geometry = new THREE.CylinderGeometry(0.3, 0.3, 3);
+			var cylinder_material = new THREE.MeshBasicMaterial( { color: 0xff0000 } );
+			var cylinder = new THREE.Mesh( cylinder_geometry, cylinder_material );
+			
+			pivot.add( cylinder );
+			cylinder.position.set(2,0,0);
+			
+			stats = new Stats();
+			stats.domElement.style.position = 'absolute';
+			stats.domElement.style.top = '0px';
+			document.body.appendChild( stats.domElement );
+			
+			camera.position.z = 5;
+			
+			function render() {
+				
+				requestAnimationFrame(render);
+				
+				stats.update();
+				
+				renderer.render(scene, camera);
+			}
+			
+			render();
+		</script>
+	</body>
+</html>

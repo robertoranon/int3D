@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<title>three.js webgl - post processing: exposure and color filter</title>
+		<meta charset="utf-8">
+		<meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
+		<style>
+			body {
+				background-color: #f0f0f0;
+				margin: 0px;
+				overflow: hidden;
+			}
+
+			#info {
+				position: absolute;
+				top: 0px; width: 100%;
+				color: #222;
+				padding: 5px;
+				font-family: Monospace;
+				font-size: 13px;
+				text-align: center;
+			}
+
+			a {
+				color: #000;
+				text-decoration: none;
+			}
+
+			a:hover {
+				color: #0080ff;
+			}
+		</style>
+	</head>
+	<body>
+
+		<div id="info">
+			<a href="https://github.com/robertoranon/int3D" target="_blank">Interactive 3D Graphics 2017 code</a> - post processing: exposure and color filter<br />
+		</div>
+		<script src="lib/three.min.js"></script>
+		<script src="lib/stats.min.js"></script>
+		<script src="lib/OrbitControls.js"></script>
+		<script src='lib/dat.gui.min.js'></script>
+		<script src='lib/OBJLoader.js'></script>
+		<script src="lib/EffectComposer.js"></script>
+		<script src="lib/CopyShader.js"></script>
+		<script src="lib/ShaderPass.js"></script>
+		<script src="lib/RenderPass.js"></script>
+		<script src="lib/GammaCorrectionShader.js"></script>
+
+
+
+		<!-- three.js code -->
+
+		<script>
+		var ExposureColorFilterShader = {
+			uniforms: {
+				"tDiffuse": { type: "t", value: null },
+				"colorMult": { type: "v3", value: new THREE.Vector3(1.0,1.0,1.0) },
+				"exposure": { type: "f", value: 2.0 },
+			},
+			vertexShader: [
+				"varying vec2 vUv;",
+				"void main() {",
+					"vUv = uv;",
+					"gl_Position = projectionMatrix * modelViewMatrix * vec4( position, 1.0 );",
+				"}"
+			].join("\n"),
+			fragmentShader: [
+				"uniform sampler2D tDiffuse;",
+				"varying vec2 vUv;",
+				"uniform vec3 colorMult;",
+				"uniform float exposure;",
+				"void main() {",
+					"vec3 original_color = texture2D(tDiffuse, vUv).rgb;",
+					"vec3 exposureColorFilter = exp2(exposure)*colorMult;",
+					"gl_FragColor = vec4(original_color*exposureColorFilter,1.0);",
+				"}"
+			].join("\n")
+		};
+
+			var renderer = new THREE.WebGLRenderer( { antialias: true } );
+			var camera = new THREE.PerspectiveCamera( 35, window.innerWidth / window.innerHeight, 1, 1000 );
+			var controls = new THREE.OrbitControls( camera, renderer.domElement );
+			var scene = new THREE.Scene();
+			var guiParams = {
+				enabled: true,
+				exposure: 0.0,
+				colorFilter: 0xffffff,
+			}
+			var ExposureColorFilterEffect;
+
+			var normalMap = loadTexture( "textures/normal.jpg" );
+			var loader = new THREE.CubeTextureLoader();
+				loader.setPath( 'textures/cubemap/' );
+
+				var textureCube = loader.load( [
+					'posx.png', 'negx.png',
+					'posy.png', 'negy.png',
+					'posz.png', 'negz.png'
+				] );
+
+			scene.background = textureCube;
+			textureCube.minFilter = THREE.LinearMipMapLinearFilter;
+
+			var ourMaterial = new THREE.MeshStandardMaterial({
+			 	envMap: textureCube,
+			  roughness: 0.5,
+				normalMap: normalMap,
+			  normalScale: new THREE.Vector2(1,1),
+				color: new THREE.Color(0.8,0.8,0.8),
+				metalness: 1,
+			});
+
+			var loader = new THREE.OBJLoader();
+				loader.load( "models/ninjaHead_Low.obj", function ( group ) {
+					geometry = group.children[ 0 ].geometry;
+					geometry.center();
+					mesh = new THREE.Mesh( geometry, ourMaterial );
+					mesh.scale.multiplyScalar( 0.1 );
+					scene.add( mesh );
+				} );
+
+			var gui;
+			var stats = new Stats();
+
+			function loadTexture(file) {
+					var texture = new THREE.TextureLoader().load( file , function ( texture ) {
+
+						texture.minFilter = THREE.LinearMipMapLinearFilter;
+						texture.anisotropy = renderer.getMaxAnisotropy();
+						texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
+    			  texture.offset.set( 0, 0 );
+						texture.needsUpdate = true;
+						render();
+					} )
+					return texture;
+			}
+
+			function init() {
+
+				renderer.setClearColor( 0xf0f0f0 );
+				camera.position.set( 0, 0, 10 );
+				scene.add( camera );
+
+				document.body.appendChild( renderer.domElement );
+				renderer.setPixelRatio( window.devicePixelRatio );
+				renderer.setSize( window.innerWidth, window.innerHeight );
+				renderer.gammaInput = true;
+				renderer.gammaOutput = false;
+
+				controls.minDistance = 1;
+				controls.maxDistance = 100;
+				controls.enablePan = false;
+				controls.update();
+
+				window.addEventListener( 'resize', onResize, false );
+
+			  stats.domElement.style.position = 'absolute';
+			  stats.domElement.style.top = '0px';
+			  document.body.appendChild( stats.domElement );
+
+				composer = new THREE.EffectComposer( renderer );
+				composer.addPass( new THREE.RenderPass( scene, camera ) );
+				ExposureColorFilterEffect = new THREE.ShaderPass( ExposureColorFilterShader );
+				composer.addPass( ExposureColorFilterEffect );
+				passthrough = new THREE.ShaderPass( THREE.GammaCorrectionShader);
+				 passthrough.renderToScreen = true; 
+				composer.addPass( passthrough );
+			}
+
+			function onResize() {
+
+				renderer.setSize( window.innerWidth, window.innerHeight );
+				camera.aspect = ( window.innerWidth / window.innerHeight );
+				camera.updateProjectionMatrix();
+
+			}
+
+			function update() {
+				requestAnimationFrame( update );
+				stats.update();
+				ExposureColorFilterEffect.uniforms.exposure.value = guiParams.exposure;
+				ExposureColorFilterEffect.uniforms.colorMult.value = new THREE.Color(guiParams.colorFilter);
+				render();
+			}
+
+			function render() {
+				composer.render();
+			}
+
+			function clearGui() {
+
+				if ( gui ) gui.destroy();
+				gui = new dat.GUI();
+				gui.open();
+
+			}
+
+			function buildGui() {
+				clearGui();
+				gui.add(guiParams,'enabled').onChange( function (value) {
+					ExposureColorFilterEffect.enabled = value;
+				});
+				gui.add(guiParams,'exposure',-10,10);
+				gui.addColor(guiParams,'colorFilter');
+			}
+
+
+			init();
+			buildGui();
+			update();
+			render();
+
+		</script>
+	</body>
+</html>

@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<title>three.js webgl - lights - spotlight</title>
+		<meta charset="utf-8">
+		<meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
+		<style>
+			body {
+				background-color: #f0f0f0;
+				margin: 0px;
+				overflow: hidden;
+			}
+
+			#info {
+				position: absolute;
+				top: 0px; width: 100%;
+				color: #222;
+				padding: 5px;
+				font-family: Monospace;
+				font-size: 13px;
+				text-align: center;
+			}
+
+			a {
+				color: #000;
+				text-decoration: none;
+			}
+
+			a:hover {
+				color: #0080ff;
+			}
+		</style>
+	</head>
+	<body>
+
+		<div id="info">
+			<a href="https://github.com/robertoranon/int3D" target="_blank">Interactive 3D Graphics 2017 code</a> - lambertian shader by <a href="https://github.com/robertoranon" target="_blank">Roberto Ranon</a><br />
+		</div>
+		<script src="lib/three.min.js"></script>
+		<script src="lib/stats.min.js"></script>
+		<script src="lib/OrbitControls.js"></script>
+		<script src='lib/dat.gui.min.js'></script>
+
+		<!-- shaders -->
+
+		<script type="text/x-glsl" id="vertex">
+		varying vec3 vNormal;
+		varying vec3 vPosition;
+
+		void main() {
+			vec4 vPos = modelViewMatrix * vec4( position, 1.0 );
+			vPosition = vPos.xyz;
+			vNormal = normalMatrix * normal;
+			gl_Position = projectionMatrix * vPos;
+		}
+		</script>
+
+		<script type="text/x-glsl" id="fragment">
+			varying vec3 vNormal;
+			varying vec3 vPosition;
+			uniform vec3 pointLightPosition; // in world space
+			uniform vec3 clight;
+			uniform vec3 cdiff;
+			const float PI = 3.14159;
+
+			void main() {
+				vec4 lPosition = viewMatrix * vec4( pointLightPosition, 1.0 );
+				vec3 l = normalize(lPosition.xyz - vPosition.xyz);
+				vec3 n = normalize( vNormal );  // interpolation destroys normalization, so we have to normalize
+				float nDotl = max(dot( n, l ),0.0);
+				// formula would be:
+				// outRadiance = clight * PI * cdiff/PI * nDotl, the two PI cancel out
+				vec3 outRadiance = clight * nDotl * cdiff;
+				// gamma encode the final value
+				gl_FragColor = vec4(pow( outRadiance, vec3(1.0/2.2)), 1.0);
+			}
+		</script>
+
+		<!-- three.js code -->
+
+		<script>
+
+			var renderer = new THREE.WebGLRenderer( { antialias: true } );
+			var camera = new THREE.PerspectiveCamera( 35, window.innerWidth / window.innerHeight, 1, 1000 );
+			var controls = new THREE.OrbitControls( camera, renderer.domElement );
+			var scene = new THREE.Scene();
+
+			var lightParameters = {
+				red: 1.0,
+				green: 1.0,
+				blue: 1.0,
+				intensity: 1.5,
+			}
+			var cdiff = {
+				red: 0.7,
+				green: 0.0,
+				blue: 0.0,
+			}
+
+			var uniforms = {
+						cdiff:	{ type: "v3", value: new THREE.Vector3() },
+						pointLightPosition:	{ type: "v3", value: new THREE.Vector3() },
+						clight:	{ type: "v3", value: new THREE.Vector3() },
+					};
+
+			vs = document.getElementById("vertex").textContent;
+			fs = document.getElementById("fragment").textContent;
+
+			ourMaterial = new THREE.ShaderMaterial({ uniforms: uniforms, vertexShader: vs, fragmentShader: fs });
+			geometry = new THREE.TorusKnotGeometry( 2, 0.5, 200, 32 );
+			var mesh = new THREE.Mesh( geometry, ourMaterial );
+
+			var lightMesh = new THREE.Mesh( new THREE.SphereGeometry( 1, 16, 16),
+				new THREE.MeshBasicMaterial ({color: 0xffff00, wireframe:true}));
+			lightMesh.position.set( 7.0, 7.0, 7.0 );
+			uniforms.pointLightPosition.value = new THREE.Vector3(lightMesh.position.x,
+																														lightMesh.position.y,
+																														lightMesh.position.z);
+
+			var gui;
+			var stats = new Stats();
+
+			function init() {
+
+				renderer.setClearColor( 0xf0f0f0 );
+
+				camera.position.set( 0, 10, 10 );
+				scene.add( camera );
+
+				scene.add( mesh );
+				scene.add(lightMesh);
+
+				document.body.appendChild( renderer.domElement );
+				renderer.setPixelRatio( window.devicePixelRatio );
+				renderer.setSize( window.innerWidth, window.innerHeight );
+
+				controls.addEventListener( 'change', render );
+				controls.minDistance = 1;
+				controls.maxDistance = 100;
+				//controls.maxPolarAngle = Math.PI / 2;
+				controls.enablePan = false;
+				controls.target.copy( mesh.position );
+				controls.update();
+
+				window.addEventListener( 'resize', onResize, false );
+
+
+			  stats.domElement.style.position = 'absolute';
+			  stats.domElement.style.top = '0px';
+			  document.body.appendChild( stats.domElement );
+
+			}
+
+			function onResize() {
+
+				renderer.setSize( window.innerWidth, window.innerHeight );
+				camera.aspect = ( window.innerWidth / window.innerHeight );
+				camera.updateProjectionMatrix();
+
+			}
+
+			function update() {
+				requestAnimationFrame( update );
+				stats.update();
+			}
+
+			function render() {
+				updateUniforms();
+				renderer.render( scene, camera );
+
+			}
+
+			function clearGui() {
+
+				if ( gui ) gui.destroy();
+				gui = new dat.GUI();
+				gui.open();
+
+			}
+
+			function buildGui() {
+
+				clearGui();
+				lightSettings = gui.addFolder('Light Parameters');
+				lightSettings.add(lightParameters,'red').min(0).max(1).onChange( function(newVal) { render() });
+				lightSettings.add(lightParameters,'green').min(0).max(1).onChange( function(newVal) { render() });
+				lightSettings.add(lightParameters,'blue').min(0).max(1).onChange( function(newVal) { render() });
+				lightSettings.add(lightParameters,'intensity').min(0).max(10000).onChange( function(newVal) { render() });
+
+				cdiffSettings = gui.addFolder('cdiff');
+				cdiffSettings.add(cdiff,'red').min(0).max(1).onChange( function(newVal) { render() });
+				cdiffSettings.add(cdiff,'green').min(0).max(1).onChange( function(newVal) { render() });
+				cdiffSettings.add(cdiff,'blue').min(0).max(1).onChange( function(newVal) { render() });
+
+			}
+
+			function updateUniforms() {
+
+					uniforms.cdiff.value = new THREE.Vector3(cdiff.red,cdiff.green,cdiff.blue);
+					uniforms.clight.value = new THREE.Vector3(
+							lightParameters.red * lightParameters.intensity,
+					    lightParameters.green * lightParameters.intensity,
+							lightParameters.blue * lightParameters.intensity);
+			}
+
+			init();
+			buildGui();
+			update();
+			render();
+
+		</script>
+	</body>
+</html>

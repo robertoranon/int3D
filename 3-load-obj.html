@@ -23,7 +23,6 @@
 		<script>
 			var scene = new THREE.Scene();
 			var camera = new THREE.PerspectiveCamera( 75, window.innerWidth / window.innerHeight, 0.1, 1000 );
-
 			var renderer = new THREE.WebGLRenderer();
 			renderer.setSize( window.innerWidth, window.innerHeight );
 			renderer.setClearColor( 0xf0f0f0 );
@@ -31,14 +30,12 @@
 			
 			// instantiate a loader
 			var loader = new THREE.OBJLoader();
-
 			// load a resource
 			loader.load(
 				// resource URL
-				'models/tree.obj',
+				'models/subwoofer_obj.obj',
 				// Function when resource is loaded
 				function ( object ) {
-					object.material = new THREE.MeshBasicMaterial( { color: 0xff0000 } );
 					scene.add( object );
 				}
 			);
@@ -47,8 +44,8 @@
 			stats.domElement.style.position = 'absolute';
 			stats.domElement.style.top = '0px';
 			document.body.appendChild( stats.domElement );
-
-			camera.position.z = 5;
+			camera.position.z = 100;
+			camera.position.y = 50;
 			
 			function render() {
 				requestAnimationFrame(render);

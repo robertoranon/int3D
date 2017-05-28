@@ -1,62 +1,64 @@
-<html>
+<!DOCTYPE html>
+<html lang="en">
 	<head>
-		<title>Post-Processing: sobel</title>
+		<title>three.js webgl - post processing: luminance</title>
+		<meta charset="utf-8">
+		<meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
 		<style>
-		
-		body {
-			font-family: Monospace;
-			background-color: #f0f0f0;
-			margin: 0px;
-			overflow: hidden;
-		}
-		
-		canvas { 
-			width: 100%; 
-			height: 100%;
-		}
-		
-		#controls { position: absolute;
-				z-index: 10;
-				color: #fff;
-				font-family: monospace;
-				text-align: center;
-				margin: 10px;
-				width: 100%;
+			body {
+				background-color: #f0f0f0;
+				margin: 0px;
+				overflow: hidden;
 			}
-	
-	</style>
+
+			#info {
+				position: absolute;
+				top: 0px; width: 100%;
+				color: #222;
+				padding: 5px;
+				font-family: Monospace;
+				font-size: 13px;
+				text-align: center;
+			}
+
+			a {
+				color: #000;
+				text-decoration: none;
+			}
+
+			a:hover {
+				color: #0080ff;
+			}
+		</style>
+	</head>
+	<body>
+
+		<div id="info">
+			<a href="https://github.com/robertoranon/int3D" target="_blank">Interactive 3D Graphics 2017 code</a> - post processing: luminance<br />
+		</div>
 		<script src="lib/three.min.js"></script>
 		<script src="lib/stats.min.js"></script>
 		<script src="lib/OrbitControls.js"></script>
-		
+		<script src='lib/dat.gui.min.js'></script>
+		<script src='lib/OBJLoader.js'></script>
 		<script src="lib/EffectComposer.js"></script>
 		<script src="lib/CopyShader.js"></script>
 		<script src="lib/ShaderPass.js"></script>
 		<script src="lib/RenderPass.js"></script>
-		<script src="lib/MaskPass.js"></script>
-		
-	</head>
-	<body>
-		
-		<div id="controls">
-			<label for="sobel">sobel:</label><input id="sobel" type="checkbox" onchange="updateOptions()"/><br />
-		</div>
-		
-		
+		<script src="lib/GammaCorrectionShader.js"></script>
+
+
+
+		<!-- three.js code -->
+
 		<script>
-		
-		// Gaussian kernel
-		// 1 2 1
-		// 2 4 2
-		// 1 2 1
-		
-		sobelShader = {
+		var sobelShader = {
 			uniforms: {
 				"tDiffuse": { type: "t", value: null },
 				"width": { type: "f", value: 0.0 },
 				"height": { type: "f", value: 0.0 },
 			},
-			
+
 			vertexShader: [
 				"varying vec2 vUv;",
 				"void main() {",
@@ -64,30 +66,28 @@
 					"gl_Position = projectionMatrix * modelViewMatrix * vec4( position, 1.0 );",
 				"}"
 			].join("\n"),
-
 			fragmentShader: [
 				"uniform sampler2D tDiffuse;",
 				"varying vec2 vUv;",
 				"uniform float width;",
 				"uniform float height;",
-
 				"void main(void)",
 				"{",
 					"float step_w = 1.0/width;",
 					"float step_h = 1.0/height;",
-				
+
 					"vec2 offset[9];",
 					"offset[0] = vec2(-step_w, -step_h);",
-					"offset[1] = vec2(0.0, -step_h);", 
+					"offset[1] = vec2(0.0, -step_h);",
 					"offset[2] = vec2(step_w, -step_h);",
 					"offset[3] = vec2(-step_w, 0.0);",
 					"offset[4] = vec2(0.0, 0.0);",
 					"offset[5] = vec2(step_w, 0.0);",
 					"offset[6] = vec2(-step_w, step_h);",
 					"offset[7] = vec2(0.0, step_h);",
-					"offset[8] = vec2(step_w, step_h);",	
+					"offset[8] = vec2(step_w, step_h);",
 				   	"float sample[9];",
-   
+
 				   "for( int i=0; i<9; i++ )",
 						"sample[i]= length(texture2D(tDiffuse, vUv + offset[i]).rgb);",
 				    "float horizEdge = sample[0] + (2.0*sample[1]) + sample[2] - (sample[6] + (2.0*sample[7]) + sample[8]);",
@@ -98,95 +98,138 @@
 			].join("\n")
 		};
 
-			var camera, scene, renderer, composer;
-			var object, light;
+			var renderer = new THREE.WebGLRenderer( { antialias: true } );
+			var camera = new THREE.PerspectiveCamera( 35, window.innerWidth / window.innerHeight, 1, 1000 );
+			var controls = new THREE.OrbitControls( camera, renderer.domElement );
+			var scene = new THREE.Scene();
 			var sobelEffect;
+			var guiParams = {
+				enabled: true,
+			}
 
-			init();
-			animate();
-			
-			function updateOptions() {
-				var sobel = document.getElementById('sobel');
-				sobelEffect.enabled = sobel.checked;
+			var normalMap = loadTexture( "textures/normal.jpg" );
+			var loader = new THREE.CubeTextureLoader();
+				loader.setPath( 'textures/cubemap/' );
+
+				var textureCube = loader.load( [
+					'posx.png', 'negx.png',
+					'posy.png', 'negy.png',
+					'posz.png', 'negz.png'
+				] );
+
+			scene.background = textureCube;
+			textureCube.minFilter = THREE.LinearMipMapLinearFilter;
+
+			var ourMaterial = new THREE.MeshStandardMaterial({
+			 	envMap: textureCube,
+			  roughness: 0.5,
+				normalMap: normalMap,
+			  normalScale: new THREE.Vector2(1,1),
+				color: new THREE.Color(0.8,0.8,0.8),
+				metalness: 1,
+			});
+
+			var loader = new THREE.OBJLoader();
+				loader.load( "models/ninjaHead_Low.obj", function ( group ) {
+					geometry = group.children[ 0 ].geometry;
+					geometry.center();
+					mesh = new THREE.Mesh( geometry, ourMaterial );
+					mesh.scale.multiplyScalar( 0.1 );
+					scene.add( mesh );
+				} );
+
+			var gui;
+			var stats = new Stats();
+
+			function loadTexture(file) {
+					var texture = new THREE.TextureLoader().load( file , function ( texture ) {
+
+						texture.minFilter = THREE.LinearMipMapLinearFilter;
+						texture.anisotropy = renderer.getMaxAnisotropy();
+						texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
+    			  texture.offset.set( 0, 0 );
+						texture.needsUpdate = true;
+						render();
+					} )
+					return texture;
 			}
 
 			function init() {
 
-				renderer = new THREE.WebGLRenderer();
-				renderer.setSize( window.innerWidth, window.innerHeight );
+				renderer.setClearColor( 0xf0f0f0 );
+				camera.position.set( 0, 0, 10 );
+				scene.add( camera );
+
 				document.body.appendChild( renderer.domElement );
+				renderer.setPixelRatio( window.devicePixelRatio );
+				renderer.setSize( window.innerWidth, window.innerHeight );
+				renderer.gammaInput = true;
+				renderer.gammaOutput = false;
 
-				//
+				controls.minDistance = 1;
+				controls.maxDistance = 100;
+				controls.enablePan = false;
+				controls.update();
 
-				camera = new THREE.PerspectiveCamera( 70, window.innerWidth / window.innerHeight, 1, 1000 );
-				camera.position.z = 400;
+				window.addEventListener( 'resize', onResize, false );
 
-				scene = new THREE.Scene();
-				scene.fog = new THREE.Fog( 0x000000, 1, 1000 );
-
-				object = new THREE.Object3D();
-				scene.add( object );
-
-				var geometry = new THREE.SphereGeometry( 1, 4, 4 );
-				
-				for ( var i = 0; i < 100; i ++ ) {
-					material = new THREE.MeshPhongMaterial( { color: 0xffffff * Math.random(), shading: THREE.FlatShading } );
-					var mesh = new THREE.Mesh( geometry, material );
-					mesh.position.set( Math.random() - 0.5, Math.random() - 0.5, Math.random() - 0.5 ).normalize();
-					mesh.position.multiplyScalar( Math.random() * 400 );
-					mesh.rotation.set( Math.random() * 2, Math.random() * 2, Math.random() * 2 );
-					mesh.scale.x = mesh.scale.y = mesh.scale.z = Math.random() * 50;
-					object.add( mesh );
-
-				}
-
-				scene.add( new THREE.AmbientLight( 0x222222 ) );
-
-				light = new THREE.DirectionalLight( 0xffffff );
-				light.position.set( 1, 1, 1 );
-				scene.add( light );
-
-				// postprocessing
+			  stats.domElement.style.position = 'absolute';
+			  stats.domElement.style.top = '0px';
+			  document.body.appendChild( stats.domElement );
 
 				composer = new THREE.EffectComposer( renderer );
 				composer.addPass( new THREE.RenderPass( scene, camera ) );
-
 				sobelEffect = new THREE.ShaderPass( sobelShader );
 				sobelEffect.uniforms.width.value = window.innerWidth;
 				sobelEffect.uniforms.height.value = window.innerHeight;
 				composer.addPass( sobelEffect );
-				
-				var effect = new THREE.ShaderPass( THREE.CopyShader);
-				effect.renderToScreen = true;
-				composer.addPass( effect );
-				
-				updateOptions();
-
-				window.addEventListener( 'resize', onWindowResize, false );
-
+				passthrough = new THREE.ShaderPass( THREE.GammaCorrectionShader);
+				 passthrough.renderToScreen = true; 
+				composer.addPass( passthrough );
 			}
 
-			function onWindowResize() {
-
-				camera.aspect = window.innerWidth / window.innerHeight;
-				camera.updateProjectionMatrix();
+			function onResize() {
 
 				renderer.setSize( window.innerWidth, window.innerHeight );
+				camera.aspect = ( window.innerWidth / window.innerHeight );
+				camera.updateProjectionMatrix();
+				sobelEffect.uniforms.width.value = window.innerWidth;
+				sobelEffect.uniforms.height.value = window.innerHeight;
 
 			}
 
-			function animate() {
+			function update() {
+				requestAnimationFrame( update );
+				stats.update();
+				render();
+			}
 
-				requestAnimationFrame( animate );
-
-				object.rotation.x += 0.005;
-				object.rotation.y += 0.01;
-
+			function render() {
 				composer.render();
 
 			}
 
-		</script>
+			function clearGui() {
+
+				if ( gui ) gui.destroy();
+				gui = new dat.GUI();
+				gui.open();
+
+			}
+
+			function buildGui() {
+				clearGui();
+				gui.add(guiParams,'enabled').onChange( function (value) {
+					sobelEffect.enabled = value;
+				});
+			}
+
+
+			init();
+			buildGui();
+			update();
+			render();
+
 		</script>
 	</body>
 </html>

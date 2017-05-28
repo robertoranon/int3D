@@ -24,15 +24,21 @@
 	<body>
 		
 		<script>
-			var scene = new THREE.Scene();
-			var camera = new THREE.PerspectiveCamera( 75, window.innerWidth / window.innerHeight, 0.1, 1000 );
+		
+		var scene, camera, renderer, controls, stats;
+		
+		function Start() {
+			scene = new THREE.Scene();
+			camera = new THREE.PerspectiveCamera( 75, window.innerWidth / window.innerHeight, 0.1, 1000 );
 
-			var renderer = new THREE.WebGLRenderer();
+			renderer = new THREE.WebGLRenderer();
 			renderer.setSize( window.innerWidth, window.innerHeight );
 			renderer.setClearColor( 0xf0f0f0 );
 			document.body.appendChild( renderer.domElement );
 			
-			// scale
+			camera.position.set(3,4,6);
+			camera.lookAt( new THREE.Vector3(0,0,0));
+			
 			var geometry = new THREE.BoxGeometry(3,3,3);
 			var material = new THREE.MeshBasicMaterial( { color: 0xaaaaaa, transparent: true, opacity:0.4 } );
 			var cube = new THREE.Mesh( geometry, material );
@@ -52,27 +58,30 @@
 			stats.domElement.style.top = '0px';
 			document.body.appendChild( stats.domElement );
 			
-			camera.position.set(3,4,6);
-			camera.lookAt( new THREE.Vector3(0,0,0));
+			
 			Coordinates.drawAllAxes();
 			
 			controls = new THREE.OrbitControls( camera );
-			controls.addEventListener( 'change', render );
+			controls.addEventListener( 'change', Render );
 			
-			function animate() {
-
-				requestAnimationFrame( animate );
-				controls.update();
-
-			}
 			
-			function render() {
-				
-				stats.update();
-				renderer.render(scene, camera);
-			}
+		}
+		
+		function Update() {
+			requestAnimationFrame( Update );
+			controls.update();  
+			stats.update();
+			Render();
+		}
+		
+		function Render() {
 			
-			animate();
+			renderer.render(scene, camera);
+		}
+		
+		Start();
+		Update();
+			
 		</script>
 	</body>
 </html>
